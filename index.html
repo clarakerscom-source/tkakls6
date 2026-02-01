@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CBT HOTS - TKA Kelas 6 SD</title>
+
+  <!-- Firebase SDK (opsional) -->
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root { --primary: #2563eb; --secondary: #f59e0b; --success: #10b981; --bg: #f8fafc; --dark: #1e293b; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 0; color: var(--dark); height: 100vh; display: flex; flex-direction: column; }
+
+    .hidden { display: none !important; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; width: 100%; box-sizing: border-box; }
+    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-outline { background: white; border: 1px solid #cbd5e1; color: var(--dark); }
+    .btn-warning { background: var(--secondary); color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+
+    /* 1. LOGIN PAGE */
+    #view-login { display: flex; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%); }
+    .login-card { background: white; padding: 40px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+    .login-card h1 { color: var(--primary); text-align: center; margin-bottom: 20px; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
+    .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; }
+
+    /* 2. EXAM INTERFACE */
+    #view-exam { display: flex; flex: 1; height: 100vh; overflow: hidden; }
+
+    .exam-sidebar { width: 300px; background: white; border-left: 1px solid #e2e8f0; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
+    .sidebar-header { padding: 20px; border-bottom: 1px solid #e2e8f0; background: #f1f5f9; text-align: center; }
+    .nav-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 20px; }
+    .nav-item { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: white; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }
+    .nav-item.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary); }
+    .nav-item.answered { background: var(--success); color: white; border-color: var(--success); }
+    .nav-item.flagged { background: var(--secondary); color: white; border-color: var(--secondary); }
+
+    .exam-main { flex: 1; display: flex; flex-direction: column; height: 100%; overflow-y: auto; position: relative; }
+    .exam-topbar { padding: 15px 30px; background: white; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .timer-badge { background: #ef4444; color: white; padding: 5px 15px; border-radius: 20px; font-weight: bold; font-family: monospace; font-size: 1.2em; }
+
+    .question-area { flex: 1; padding: 40px; max-width: 900px; margin: 0 auto; width: 100%; }
+    .stimulus-box { background: #f8fafc; padding: 20px; border-left: 4px solid var(--primary); border-radius: 4px; margin-bottom: 20px; line-height: 1.6; font-size: 1.05em; color: #334155; }
+
+    .stimulus-box img { max-width: 100%; height: auto; display: block; margin-top: 12px; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .question-text { font-size: 1.2em; font-weight: 700; margin-bottom: 20px; }
+
+    .options-list { display: flex; flex-direction: column; gap: 10px; }
+    .option-item { display: flex; align-items: center; padding: 15px; border: 1px solid #cbd5e1; border-radius: 8px; cursor: pointer; transition: 0.2s; background: white; }
+    .option-item:hover { background: #eff6ff; border-color: var(--primary); }
+    .option-item input { margin-right: 15px; transform: scale(1.2); }
+
+    .exam-footer { padding: 20px 40px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .exam-footer .btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+    /* 3. RESULT & TEACHER PAGE */
+    .center-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; text-align: center; padding: 20px; }
+    .score-circle { width: 150px; height: 150px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 3em; font-weight: bold; margin: 20px 0; box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #view-exam { flex-direction: column; }
+      .exam-sidebar { width: 100%; height: auto; order: 2; border-top: 1px solid #e2e8f0; }
+      .nav-grid { grid-template-columns: repeat(10, 1fr); padding: 10px; }
+      .exam-main { height: auto; flex: 1; order: 1; }
+      .question-area { padding: 20px; }
+      .exam-footer { padding: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. LOGIN -->
+  <div id="view-login">
+    <div class="login-card">
+      <h1>🎓 CBT TKA KELAS 6</h1>
+      <div class="form-group">
+        <label>Nama Lengkap</label>
+        <input type="text" id="nama" placeholder="Masukkan nama" />
+      </div>
+      <div class="form-group">
+        <label>Asal Sekolah</label>
+        <input type="text" id="sekolah" placeholder="Nama sekolah" />
+      </div>
+      <div class="form-group">
+        <label>Mata Pelajaran</label>
+        <select id="mapel">
+          <option value="" disabled selected>-- Pilih Mapel --</option>
+          <option value="matematika">Literasi Numerasi (Matematika)</option>
+          <option value="bahasa">Literasi Membaca (Bhs. Indonesia)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width: 100%;" onclick="startExam()">Mulai Ujian</button>
+      <div style="text-align: center; margin-top: 20px;">
+        <small style="color: #64748b; cursor: pointer;" onclick="showTeacherLogin()">Login Guru</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. UJIAN -->
+  <div id="view-exam" class="hidden">
+    <main class="exam-main">
+      <header class="exam-topbar">
+        <div>
+          <h3 style="margin:0" id="exam-subject-title">Matematika</h3>
+          <small style="color: #64748b;" id="student-info-display">-</small>
+        </div>
+        <div class="timer-badge" id="timer">60:00</div>
+      </header>
+
+      <div class="question-area">
+        <div id="question-content"></div>
+      </div>
+
+      <footer class="exam-footer">
+        <button class="btn btn-outline" onclick="prevQuestion()" id="btn-prev">← Sebelumnya</button>
+        <button class="btn btn-warning" onclick="toggleFlag()">Ragu-ragu</button>
+        <button class="btn btn-primary" onclick="nextQuestion()" id="btn-next">Selanjutnya →</button>
+        <button class="btn btn-danger hidden" id="btn-finish" onclick="finishExam(false)">Selesai & Kumpul</button>
+      </footer>
+    </main>
+
+    <aside class="exam-sidebar">
+      <div class="sidebar-header">
+        <strong>Navigasi Soal</strong>
+        <div style="font-size: 12px; margin-top: 5px; color: #64748b;">
+          <span style="display:inline-block; width:10px; height:10px; background:#10b981; border-radius:50%"></span> Isi
+          <span style="display:inline-block; width:10px; height:10px; background:#f59e0b; border-radius:50%; margin-left:5px;"></span> Ragu
+        </div>
+      </div>
+      <div class="nav-grid" id="nav-grid"></div>
+    </aside>
+  </div>
+
+  <!-- 3. HASIL -->
+  <div id="view-result" class="hidden center-screen">
+    <h2>Ujian Selesai!</h2>
+    <p>Terima kasih telah mengerjakan dengan jujur.</p>
+    <div class="score-circle" id="final-score">0</div>
+    <p id="feedback-text" style="max-width: 500px; color: #64748b;">Loading...</p>
+    <button class="btn btn-primary" onclick="location.reload()">Kembali ke Halaman Utama</button>
+  </div>
+
+  <!-- 4. GURU -->
+  <div id="view-teacher" class="hidden container" style="margin-top: 50px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; gap:12px; flex-wrap:wrap;">
+      <h2 style="margin:0">📊 Dashboard Guru</h2>
+      <button class="btn btn-danger" onclick="location.reload()">Keluar</button>
+    </div>
+    <div id="teacher-login-form" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <input type="password" id="guru-pass" placeholder="" style="padding: 10px; border: 1px solid #ccc; border-radius: 4px;" />
+      <button class="btn btn-primary" onclick="loginGuru()">Masuk</button>
+    </div>
+    <div id="teacher-data" class="hidden" style="overflow:auto;">
+      
+      <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin: 10px 0 14px;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-outline" onclick="downloadResultsCSV()">⬇️ Unduh Hasil (CSV)</button>
+          <button class="btn btn-outline" onclick="downloadResultsJSON()">⬇️ Unduh Hasil (JSON)</button>
+        </div>
+        <div style="font-size:12px; color:#64748b;">
+          Tips: jika memakai Firestore, pastikan rules mengizinkan read untuk akun Anda.
+        </div>
+      </div>
+
+<table style="width:100%; border-collapse: collapse; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+        <thead style="background: #f1f5f9;">
+          <tr>
+            <th style="padding:15px; text-align:left;">Waktu</th>
+            <th style="padding:15px; text-align:left;">Nama</th>
+            <th style="padding:15px; text-align:left;">Sekolah</th>
+            <th style="padding:15px; text-align:left;">Mapel</th>
+            <th style="padding:15px; text-align:left;">Nilai</th>
+          </tr>
+        </thead>
+        <tbody id="teacher-table-body"></tbody>
+      </table>
+      <div style="margin-top:12px; color:#64748b; font-size:12px;">
+        Catatan: Data tersimpan di <b>localStorage</b> (dan akan ikut tersimpan ke <b>Firestore</b> jika konfigurasi Firebase diisi).
+      
+      <div style="margin-top:18px; background: white; border-radius: 16px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+        <h3 style="margin:0 0 12px;">🧩 Kelola Bank Soal</h3>
+
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 12px;">
+          <label style="font-weight:600;">Mapel:</label>
+          <select id="q-mapel-select" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+            <option value="matematika">Literasi Numerasi (Matematika)</option>
+            <option value="bahasa">Literasi Membaca (Bhs. Indonesia)</option>
+          </select>
+          <button class="btn btn-outline" onclick="renderQuestionManager()">Muat</button>
+          <button class="btn btn-warning" onclick="resetQuestionBank()">Reset ke Default</button>
+        </div>
+
+        <div id="question-manager-list" style="overflow:auto; border:1px solid #e2e8f0; border-radius: 12px;"></div>
+
+        <div style="margin-top:14px; display:grid; grid-template-columns: 1fr; gap:10px;">
+          <h4 style="margin: 6px 0 0;">➕ Tambah Soal Baru</h4>
+
+          <textarea id="q-stimulus" rows="3" placeholder="Stimulus (boleh dikosongkan)" style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:12px; box-sizing:border-box;"></textarea>
+
+          <div style="display:grid; grid-template-columns: 1fr; gap:10px; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:12px; padding:12px;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+              <input id="q-img-url" type="url" placeholder="Link gambar stimulus (opsional) https://..." style="flex:1; min-width:240px; padding:12px; border:1px solid #cbd5e1; border-radius:12px;" oninput="onStimulusImageUrlInput()" />
+              <input id="q-img-file" type="file" accept="image/*" style="padding:10px; border:1px solid #cbd5e1; border-radius:12px; background:white;" onchange="onStimulusImageFileChange(event)" />
+              <button class="btn btn-outline" type="button" onclick="clearStimulusImage()">Hapus Gambar</button>
+            </div>
+            <div id="q-img-preview-wrap" class="hidden" style="text-align:left;">
+              <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Preview gambar stimulus:</div>
+              <img id="q-img-preview" alt="Preview gambar stimulus" style="max-width:320px; width:100%; height:auto; border-radius:12px; border:1px solid #e2e8f0; background:white;" />
+              <div style="font-size:12px; color:#64748b; margin-top:6px;">
+                Catatan: jika Anda memilih file, gambar akan disimpan sebagai <b>data URL</b> di localStorage (bisa membuat file/browser jadi berat jika banyak).
+              </div>
+            </div>
+          </div>
+
+          <textarea id="q-text" rows="2" placeholder="Pertanyaan (wajib)" style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:12px; box-sizing:border-box;"></textarea>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <input id="q-opt-a" placeholder="Opsi A" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+            <input id="q-opt-b" placeholder="Opsi B" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+            <input id="q-opt-c" placeholder="Opsi C" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+            <input id="q-opt-d" placeholder="Opsi D" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <label style="font-weight:600;">Kunci:</label>
+            <select id="q-answer" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+              <option value="0">A</option>
+              <option value="1">B</option>
+              <option value="2">C</option>
+              <option value="3">D</option>
+            </select>
+            <button class="btn btn-primary" onclick="addQuestion()">Simpan Soal</button>
+          </div>
+
+          <div style="font-size:12px; color:#64748b;">
+            Bank soal disimpan di <b>localStorage</b> pada perangkat/browser ini. Jika Anda ingin multi perangkat, nanti bisa dipindah ke Firestore.
+          </div>
+        </div>
+      </div>
+
+</div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+  apiKey: "AIzaSyDsKRzaFoYYVTri9iaEId0_6hB4gAQeBsc",
+  authDomain: "cbt-sekolah-kelas-6.firebaseapp.com",
+  projectId: "cbt-sekolah-kelas-6",
+  storageBucket: "cbt-sekolah-kelas-6.firebasestorage.app",
+  messagingSenderId: "519598971101",
+  appId: "1:519598971101:web:1157cf7b4a7986309b2334",
+  measurementId: "G-FPFQQMK6NB"
+};
+
+    let db;
+    try {
+      if (firebaseConfig.apiKey) {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+      }
+    } catch (e) { console.error("Firebase Error:", e); }
+
+    const defaultMathHOTS = [
+      { stimulus: "Ibu ingin membuat 2 loyang kue bolu untuk acara arisan. Resep asli untuk 1 loyang kue membutuhkan 3/4 kg tepung terigu. Di dapur, Ibu hanya memiliki persediaan tepung sebanyak 2 kg.",
+        q: "Berapakah sisa tepung terigu Ibu setelah membuat 2 loyang kue tersebut?",
+        opt: ["0,25 kg","0,50 kg","0,75 kg","1,00 kg"], a: 1 },
+      { stimulus: "Pak Budi ronda setiap 4 hari sekali, Pak Andi setiap 6 hari sekali, dan Pak Cipta setiap 8 hari sekali. Mereka ronda bersama pertama kali tanggal 1 Januari.",
+        q: "Tanggal berapakah mereka akan ronda bersama-sama lagi untuk kedua kalinya?",
+        opt: ["12 Januari","24 Januari","25 Januari","4 Februari"], a: 2 },
+      { stimulus: "Sebuah bak mandi berbentuk kubus memiliki kedalaman 80 cm. Bak diisi penuh, lalu air berkurang 1/4 bagian. (1 liter = 1 dm³)",
+        q: "Berapa liter sisa air di dalam bak sekarang?",
+        opt: ["384 liter","512 liter","128 liter","640 liter"], a: 0 },
+      { stimulus: "Harga sepatu Rp 200.000. Diskon 20% untuk semua barang. Ayah membawa uang Rp 300.000.",
+        q: "Jika Ayah membeli sepatu itu, berapa uang kembaliannya?",
+        opt: ["Rp 140.000","Rp 160.000","Rp 40.000","Rp 120.000"], a: 0 },
+      { stimulus: "Suhu lemari pendingin mula-mula -4°C. Saat listrik mati, suhu naik 2°C tiap 30 menit.",
+        q: "Jika listrik mati 2 jam, berapakah suhu sekarang?",
+        opt: ["0°C","2°C","4°C","8°C"], a: 2 },
+      { stimulus: "Di perpustakaan, 3/5 dari 150 buku adalah buku cerita. Sisanya buku pengetahuan.",
+        q: "Berapa banyak buku pengetahuan di perpustakaan itu?",
+        opt: ["60 buku","90 buku","120 buku","150 buku"], a: 0 },
+      { stimulus: "Sebuah kelas berisi 32 siswa. 1/4 siswa ikut lomba sains dan 3/8 siswa ikut lomba olahraga. Tidak ada siswa yang ikut kedua lomba.",
+        q: "Berapa siswa yang tidak ikut lomba apa pun?",
+        opt: ["12 siswa","14 siswa","16 siswa","18 siswa"], a: 0 },
+      { stimulus: "Sebuah tangki berisi 45 liter air. Air itu digunakan untuk mengisi botol 600 ml.",
+        q: "Maksimal berapa botol penuh yang bisa diisi?",
+        opt: ["70 botol","75 botol","80 botol","85 botol"], a: 1 },
+      { stimulus: "Jarak rumah Dika ke sekolah 3,6 km. Dika sudah berjalan 1,25 km lalu naik sepeda sejauh 1,8 km.",
+        q: "Berapa km jarak yang belum ditempuh Dika?",
+        opt: ["0,45 km","0,55 km","0,65 km","0,75 km"], a: 1 },
+      { stimulus: "Sebuah toko memberi promo: beli 3 pensil harga satuannya Rp 4.000, mendapat potongan Rp 2.000 dari total belanja.",
+        q: "Berapa yang harus dibayar untuk 3 pensil?",
+        opt: ["Rp 10.000","Rp 12.000","Rp 14.000","Rp 8.000"], a: 0 },
+      { stimulus: "Sebuah kolam berbentuk balok: panjang 4 m, lebar 3 m, kedalaman 1,5 m. Kolam terisi air 2/3 bagian.",
+        q: "Berapa volume air di kolam (dalam m³)?",
+        opt: ["12 m³","18 m³","24 m³","36 m³"], a: 0 },
+      { stimulus: "Ibu membeli 2 kg jeruk. Ternyata 15% jeruk busuk dan dibuang.",
+        q: "Berapa kg jeruk yang masih baik?",
+        opt: ["1,70 kg","1,75 kg","1,80 kg","1,85 kg"], a: 0 },
+      { stimulus: "Sebuah peta memiliki skala 1 : 200.000. Jarak dua kota di peta adalah 7 cm.",
+        q: "Berapa jarak sebenarnya (dalam km)?",
+        opt: ["7 km","14 km","21 km","28 km"], a: 1 },
+      { stimulus: "Sebuah sekolah mengumpulkan sumbangan. Hari Senin terkumpul Rp 360.000, hari Selasa Rp 420.000, hari Rabu Rp 300.000.",
+        q: "Berapa rata-rata sumbangan per hari?",
+        opt: ["Rp 340.000","Rp 360.000","Rp 380.000","Rp 400.000"], a: 1 },
+      { stimulus: "Di kantin, 5 roti dan 2 susu harganya Rp 44.000. Sedangkan 3 roti dan 2 susu harganya Rp 34.000.",
+        q: "Berapa harga 1 roti?",
+        opt: ["Rp 4.000","Rp 5.000","Rp 6.000","Rp 7.000"], a: 1 },
+      { stimulus: "Sebuah bus berangkat pukul 07.35. Perjalanan memakan waktu 2 jam 25 menit.",
+        q: "Bus tiba pukul...",
+        opt: ["09.50","10.00","10.05","10.10"], a: 1 },
+      { stimulus: "Panjang pita 2,4 m dipotong menjadi 6 bagian sama panjang.",
+        q: "Berapa panjang setiap potongan pita?",
+        opt: ["0,2 m","0,3 m","0,4 m","0,5 m"], a: 2 },
+      { stimulus: "Sebuah kotak berisi kelereng merah dan biru. Total 45 kelereng. Kelereng merah 5 lebih banyak daripada biru.",
+        q: "Berapa kelereng biru?",
+        opt: ["18","20","22","25"], a: 1 },
+      { stimulus: "Harga sebuah tas Rp 180.000. Bulan ini naik 10%, bulan depan turun 10% dari harga bulan ini.",
+        q: "Harga tas setelah naik lalu turun adalah...",
+        opt: ["Rp 178.200","Rp 180.000","Rp 181.800","Rp 198.000"], a: 0 },
+      { stimulus: "Di sebuah kelas, nilai matematika 5 siswa: 70, 80, 75, 90, 85.",
+        q: "Berapa median nilai tersebut?",
+        opt: ["75","80","82","85"], a: 1 },
+      { stimulus: "Sebuah toko menjual gula 2,5 kg seharga Rp 37.500.",
+        q: "Berapa harga 1 kg gula?",
+        opt: ["Rp 12.500","Rp 15.000","Rp 17.500","Rp 20.000"], a: 1 },
+      { stimulus: "Sebuah persegi panjang memiliki keliling 54 cm. Panjangnya 5 cm lebih dari lebarnya.",
+        q: "Berapa panjang persegi panjang itu?",
+        opt: ["15 cm","16 cm","17 cm","18 cm"], a: 1 },
+      { stimulus: "Andi menabung Rp 5.000 per hari. Setelah 18 hari, ia memakai Rp 25.000 untuk membeli buku.",
+        q: "Berapa sisa tabungan Andi?",
+        opt: ["Rp 55.000","Rp 60.000","Rp 65.000","Rp 70.000"], a: 2 },
+      { stimulus: "Sebuah data tinggi badan (cm): 140, 145, 142, 145, 148, 142, 145.",
+        q: "Modus data tersebut adalah...",
+        opt: ["140","142","145","148"], a: 2 },
+      { stimulus: "Siti membeli kain 3 1/2 meter. Ia memakai 1 3/4 meter untuk membuat baju.",
+        q: "Sisa kain Siti adalah...",
+        opt: ["1 1/4 m","1 1/2 m","1 3/4 m","2 1/4 m"], a: 2 }
+    ];
+
+    const defaultIndoHOTS = [
+      { stimulus: "Hutan bakau memiliki akar tunjang yang kuat dan rapat. Akar-akar ini berfungsi untuk menahan hantam ombak laut agar tidak mengikis daratan. Selain itu, hutan bakau juga menjadi tempat tinggal bagi kepiting, udang, dan ikan-ikan kecil untuk berlindung dari predator.",
+        q: "Berdasarkan paragraf di atas, apa yang akan terjadi jika hutan bakau dirusak oleh manusia?",
+        opt: ["Populasi ikan kecil akan meningkat pesat.","Terjadinya abrasi pantai karena tidak ada penahan ombak.","Air laut akan menjadi lebih jernih.","Nelayan akan lebih mudah menangkap ikan besar."], a: 1 },
+      { stimulus: "Bacalah kutipan cerita berikut: 'Rara menatap nanar pecahan vas bunga kesayangan Ibu di lantai. Jantungnya berdegup kencang. Ia tahu Ibu akan pulang sebentar lagi. Rara segera mengambil sapu, membersihkan pecahan itu, dan menyiapkan teh hangat kesukaan Ibu. Saat Ibu pulang, Rara langsung memeluk kaki Ibu dan menceritakan semuanya dengan jujur.'",
+        q: "Watak tokoh Rara dalam kutipan cerita tersebut adalah...",
+        opt: ["Pemarah namun rajin","Penakut dan pembohong","Bertanggung jawab dan jujur","Cerdik dan suka mencari alasan"], a: 2 },
+      { stimulus: "Istilah 'Global Warming' sering kita dengar di berita. Fenomena ini menyebabkan suhu bumi meningkat, es di kutub mencair, dan cuaca menjadi tidak menentu.",
+        q: "Padanan kata baku dalam Bahasa Indonesia untuk istilah 'Global Warming' adalah...",
+        opt: ["Pemanasan Global","Panas Dunia","Efek Rumah Kaca","Perubahan Iklim"], a: 0 },
+      { stimulus: "Setiap pagi, Pak Arif menyiram tanaman di halaman. Ia melakukannya agar tanaman tidak layu. Saat musim hujan, Pak Arif menyiram lebih jarang karena tanah sudah lembap.",
+        q: "Gagasan pokok paragraf tersebut adalah...",
+        opt: ["Pak Arif selalu bangun pagi.","Tanaman akan tumbuh tanpa disiram.","Pak Arif merawat tanaman dengan menyiram sesuai kondisi cuaca.","Musim hujan membuat halaman menjadi kering."], a: 2 },
+      { stimulus: "Dalam sebuah lomba, Dina tidak menjadi juara. Namun, Dina tetap tersenyum dan memberi selamat kepada pemenang. Ia berkata, 'Aku akan berlatih lebih tekun.'",
+        q: "Sikap Dina menunjukkan bahwa ia...",
+        opt: ["Sombong","Pantang menyerah","Iri hati","Mudah putus asa"], a: 1 },
+      { stimulus: "Poster: 'Kurangi Sampah Plastik! Bawa tumbler dan tas belanja sendiri. Mulai dari kita, bumi lebih sehat.'",
+        q: "Tujuan poster tersebut adalah...",
+        opt: ["Mengajak orang membuang sampah sembarangan","Memberi informasi jadwal belanja","Mengimbau masyarakat mengurangi penggunaan plastik","Mempromosikan produk tas baru"], a: 2 },
+      { stimulus: "Udin membaca buku 20 halaman setiap hari. Ia ingin menamatkan buku 200 halaman sebelum akhir pekan.",
+        q: "Kalimat tanya yang tepat untuk informasi tersebut adalah...",
+        opt: ["Siapa yang menulis buku itu?","Berapa hari Udin membutuhkan untuk menamatkan buku?","Di mana Udin membeli buku?","Mengapa Udin tidak membaca?"], a: 1 },
+      { stimulus: "'Jangan menilai seseorang dari penampilannya, karena hati dan tindakanlah yang menunjukkan siapa dirinya.'",
+        q: "Makna pesan tersebut adalah...",
+        opt: ["Penampilan selalu buruk","Kita harus menilai orang dari kebaikan dan perbuatannya","Semua orang harus berpakaian sama","Hati tidak penting"], a: 1 },
+      { stimulus: "Teks: 'Kupu-kupu mengalami metamorfosis sempurna: telur, larva (ulat), pupa (kepompong), lalu imago (dewasa).'",
+        q: "Urutan metamorfosis yang benar adalah...",
+        opt: ["Larva–telur–pupa–imago","Telur–larva–pupa–imago","Telur–pupa–larva–imago","Imago–pupa–larva–telur"], a: 1 },
+      { stimulus: "Saat listrik padam, warga menyalakan lilin. Ketua RT mengingatkan agar lilin dijauhkan dari benda mudah terbakar.",
+        q: "Penyebab ketua RT memberi peringatan adalah untuk mencegah...",
+        opt: ["Banjir","Kebakaran","Gempa","Pencurian"], a: 1 },
+      { stimulus: "Beni membawa payung meskipun langit tampak cerah. Ia melihat ramalan cuaca yang menyebutkan kemungkinan hujan sore hari.",
+        q: "Alasan Beni membawa payung adalah...",
+        opt: ["Ia ingin bermain hujan","Ia takut panas","Ia berjaga-jaga karena ada kemungkinan hujan","Payung itu hadiah"], a: 2 },
+      { stimulus: "'Ayo kita kerja bakti hari Minggu pukul 07.00. Bawa alat kebersihan masing-masing.'",
+        q: "Informasi yang TIDAK terdapat pada pengumuman adalah...",
+        opt: ["Hari kegiatan","Waktu kegiatan","Tempat kegiatan","Barang yang perlu dibawa"], a: 2 },
+      { stimulus: "Teks: 'Sampah organik dapat diolah menjadi kompos. Kompos bermanfaat menyuburkan tanah.'",
+        q: "Kesimpulan yang tepat adalah...",
+        opt: ["Kompos membuat tanah kurang subur","Sampah organik tidak berguna","Sampah organik bisa dimanfaatkan untuk menyuburkan tanah","Kompos hanya untuk hiasan"], a: 2 },
+      { stimulus: "'Rani menutup buku pelajaran lalu membantu adiknya mengerjakan PR. Setelah itu, Rani kembali belajar.'",
+        q: "Urutan kegiatan Rani yang benar adalah...",
+        opt: ["Belajar–membantu adik–menutup buku","Menutup buku–membantu adik–kembali belajar","Membantu adik–menutup buku–belajar","Kembali belajar–membantu adik–menutup buku"], a: 1 },
+      { stimulus: "Dalam teks cerita, tokoh utama sering disebut 'ia' dan 'dia' untuk menghindari pengulangan nama.",
+        q: "Kata 'ia' dan 'dia' termasuk...",
+        opt: ["Kata depan","Kata ganti orang","Kata kerja","Kata bilangan"], a: 1 },
+      { stimulus: "'Air sungai menjadi keruh setelah hujan deras. Banyak sampah terbawa arus.'",
+        q: "Hubungan sebab-akibat pada teks tersebut adalah...",
+        opt: ["Sungai keruh karena hujan deras membawa sampah","Hujan deras karena sungai keruh","Sampah muncul karena sungai jernih","Arus berhenti karena hujan"], a: 0 },
+      { stimulus: "Teks: 'Siswa diminta membawa botol minum sendiri agar mengurangi sampah gelas plastik di sekolah.'",
+        q: "Ide utama teks tersebut adalah...",
+        opt: ["Siswa suka minum","Sekolah menjual plastik","Mengurangi sampah plastik dengan membawa botol sendiri","Botol minum harus mahal"], a: 2 },
+      { stimulus: "'Walaupun lelah, Tono tetap berlatih karena ia ingin tampil baik saat pertandingan.'",
+        q: "Kata hubung yang menunjukkan pertentangan adalah...",
+        opt: ["karena","walaupun","saat","tetap"], a: 1 },
+      { stimulus: "'Ibu menanam cabai di pot. Setiap dua hari sekali, Ibu memberi pupuk. Cabai tumbuh subur.'",
+        q: "Kalimat simpulan yang tepat adalah...",
+        opt: ["Cabai tidak perlu pupuk","Cabai tumbuh subur karena dirawat dan diberi pupuk","Cabai hanya tumbuh di sawah","Pupuk membuat cabai layu"], a: 1 },
+      { stimulus: "Bacaan: 'Di desa Suka Maju, warga membuat bank sampah. Warga menabung sampah anorganik dan mendapat poin yang bisa ditukar sembako.'",
+        q: "Manfaat bank sampah bagi warga adalah...",
+        opt: ["Menambah sampah di sungai","Membuat warga malas","Sampah bernilai dan bisa ditukar kebutuhan","Mengurangi kegiatan warga"], a: 2 },
+      { stimulus: "'Ayah berkata, “Kita harus hemat listrik. Matikan lampu jika tidak digunakan.”'",
+        q: "Kalimat tersebut termasuk...",
+        opt: ["Kalimat langsung","Kalimat tidak langsung","Kalimat perintah dalam bentuk laporan","Kalimat tanya"], a: 0 },
+      { stimulus: "Teks: 'Banjir terjadi karena selokan tersumbat dan banyak sampah. Warga lalu membersihkan selokan bersama-sama.'",
+        q: "Tindakan warga merupakan contoh...",
+        opt: ["Menghindari masalah","Kerja sama/gotong royong","Membuat sampah baru","Menyalahkan orang lain"], a: 1 },
+      { stimulus: "'Doni membawa bekal dari rumah agar tidak jajan sembarangan di luar.'",
+        q: "Makna kata 'sembarangan' pada kalimat tersebut adalah...",
+        opt: ["teratur","asal-asalan/tidak terkontrol","hemat","bersih"], a: 1 },
+      { stimulus: "Teks: 'Pohon menghasilkan oksigen. Karena itu, menanam pohon membantu menjaga kualitas udara.'",
+        q: "Kesimpulan yang tepat adalah...",
+        opt: ["Udara tidak butuh oksigen","Menanam pohon penting untuk udara yang lebih baik","Pohon menghabiskan udara","Menanam pohon membuat panas"], a: 1 },
+      { stimulus: "'Sinta membaca teks dua kali. Pertama untuk memahami isi, kedua untuk menemukan informasi penting.'",
+        q: "Strategi Sinta menunjukkan bahwa ia...",
+        opt: ["Tidak suka membaca","Membaca tanpa tujuan","Membaca dengan teknik agar memahami isi dan detail","Membaca hanya karena disuruh"], a: 2 },
+      { stimulus: "Teks: 'Kereta datang terlambat. Akibatnya, beberapa penumpang terlambat sampai kantor.'",
+        q: "Kata 'akibatnya' menunjukkan...",
+        opt: ["Waktu","Tempat","Sebab-akibat","Perbandingan"], a: 2 },
+      { stimulus: "'Riko menolak ajakan teman untuk mencontek. Ia memilih belajar walau nilainya belum tinggi.'",
+        q: "Nilai moral yang dapat diambil adalah...",
+        opt: ["Mencontek itu wajar","Kejujuran lebih penting daripada nilai tinggi","Belajar tidak perlu","Teman harus selalu dituruti"], a: 1 },
+      { stimulus: "Teks: 'Air bersih semakin sulit. Salah satu cara menghemat air adalah menutup keran saat menyikat gigi.'",
+        q: "Tujuan penulis adalah...",
+        opt: ["Mengajak menghemat air","Mengajak boros air","Membahas olahraga","Mempromosikan keran mahal"], a: 0 },
+      { stimulus: "'Jika kamu ingin cepat selesai, buatlah rencana belajar dan patuhi jadwalnya.'",
+        q: "Kalimat tersebut termasuk saran karena menggunakan kata...",
+        opt: ["jika","ingin","buatlah","dan"], a: 2 },
+      { stimulus: "Teks: 'Matahari terbit di timur. Pada pagi hari, bayangan benda cenderung memanjang ke arah barat.'",
+        q: "Jika sebuah tiang berdiri pada pagi hari, bayangannya mengarah ke...",
+        opt: ["Timur","Barat","Utara","Selatan"], a: 1 }
+    ];
+
+    // Bank soal yang bisa diubah guru (tersimpan di localStorage).
+    // Jika tidak ada di localStorage, maka memakai bank default di bawah.
+    let mathHOTS = JSON.parse(localStorage.getItem("cbtQuestionBank_matematika") || "null") || JSON.parse(JSON.stringify(defaultMathHOTS));
+    let indoHOTS = JSON.parse(localStorage.getItem("cbtQuestionBank_bahasa") || "null") || JSON.parse(JSON.stringify(defaultIndoHOTS));
+
+    let currentQuestions = [];
+    let userAnswers = {};
+    let flags = {};
+    let currentIndex = 0;
+    let timerInterval;
+    let timeRemaining = 3600;
+
+    // cache hasil untuk fitur download (diisi saat renderTeacherTable)
+    let teacherResultsCache = [];
+
+    // gambar stimulus sementara (diisi dari link atau file upload pada form guru)
+    let pendingStimulusImage = "";
+
+    function startExam() {
+      const nama = document.getElementById('nama').value.trim();
+      const sekolah = document.getElementById('sekolah').value.trim();
+      const mapel = document.getElementById('mapel').value;
+
+      if (!nama || !sekolah || !mapel) { alert("Data harus lengkap!"); return; }
+
+      currentQuestions = (mapel === 'matematika') ? mathHOTS : indoHOTS;
+
+      document.getElementById('student-info-display').innerText = `${nama} - ${sekolah}`;
+      document.getElementById('exam-subject-title').innerText = (mapel === 'matematika') ? "Literasi Numerasi" : "Literasi Membaca";
+
+      userAnswers = {};
+      flags = {};
+      currentIndex = 0;
+
+      document.getElementById('view-login').classList.add('hidden');
+      document.getElementById('view-exam').classList.remove('hidden');
+
+      renderNavGrid();
+      loadQuestion(0);
+      startTimer();
+    }
+
+    function loadQuestion(index) {
+      currentIndex = index;
+      const qData = currentQuestions[index];
+
+      const content = document.getElementById('question-content');
+      let optionsHTML = '';
+
+      qData.opt.forEach((opt, i) => {
+        const checked = userAnswers[index] === i ? 'checked' : '';
+        optionsHTML += `
+          <label class="option-item">
+            <input type="radio" name="ans" value="${i}" onclick="saveAnswer(${index}, ${i})" ${checked}>
+            <span>${String.fromCharCode(65 + i)}. ${opt}</span>
+          </label>
+        `;
+      });
+
+      const stimImgHtml = qData.img ? `<img src="${escapeAttr(qData.img)}" alt="Gambar stimulus" loading="lazy" referrerpolicy="no-referrer" />` : "";
+
+      content.innerHTML = `
+        <div class="stimulus-box">${qData.stimulus || ""}${stimImgHtml}</div>
+        <div class="question-text">No ${index + 1}. ${qData.q}</div>
+        <div class="options-list">${optionsHTML}</div>
+      `;
+
+      document.getElementById('btn-prev').disabled = index === 0;
+      document.getElementById('btn-next').classList.toggle('hidden', index === currentQuestions.length - 1);
+      document.getElementById('btn-finish').classList.toggle('hidden', index !== currentQuestions.length - 1);
+
+      updateNavStatus();
+    }
+
+    function saveAnswer(qIdx, optIdx) { userAnswers[qIdx] = optIdx; updateNavStatus(); }
+    function toggleFlag() { flags[currentIndex] = !flags[currentIndex]; updateNavStatus(); }
+    function prevQuestion() { if (currentIndex > 0) loadQuestion(currentIndex - 1); }
+    function nextQuestion() { if (currentIndex < currentQuestions.length - 1) loadQuestion(currentIndex + 1); }
+
+    function renderNavGrid() {
+      const grid = document.getElementById('nav-grid');
+      grid.innerHTML = '';
+      currentQuestions.forEach((_, i) => {
+        const btn = document.createElement('div');
+        btn.className = 'nav-item';
+        btn.innerText = i + 1;
+        btn.id = `nav-${i}`;
+        btn.onclick = () => loadQuestion(i);
+        grid.appendChild(btn);
+      });
+    }
+
+    function updateNavStatus() {
+      currentQuestions.forEach((_, i) => {
+        const nav = document.getElementById(`nav-${i}`);
+        if (!nav) return;
+        nav.classList.toggle('active', i === currentIndex);
+        nav.classList.toggle('answered', userAnswers[i] !== undefined);
+        nav.classList.toggle('flagged', !!flags[i]);
+      });
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      timeRemaining = 3600;
+      renderTimer();
+
+      timerInterval = setInterval(() => {
+        timeRemaining--;
+        renderTimer();
+        if (timeRemaining <= 0) {
+          clearInterval(timerInterval);
+          finishExam(true);
+        }
+      }, 1000);
+    }
+
+    function renderTimer() {
+      const m = Math.floor(timeRemaining / 60);
+      const s = timeRemaining % 60;
+      document.getElementById('timer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    function finishExam(isAuto = false) {
+      if (!isAuto) {
+        const ok = confirm("Yakin ingin selesai dan mengumpulkan jawaban?");
+        if (!ok) return;
+      }
+
+      clearInterval(timerInterval);
+
+      let correct = 0;
+      currentQuestions.forEach((q, idx) => { if (userAnswers[idx] === q.a) correct++; });
+
+      const total = currentQuestions.length;
+      const score = Math.round((correct / total) * 100);
+
+      document.getElementById('view-exam').classList.add('hidden');
+      document.getElementById('view-result').classList.remove('hidden');
+      document.getElementById('final-score').innerText = score;
+
+      let feedback = "";
+      if (score >= 85) feedback = "Mantap! Pemahamanmu sangat baik. Pertahankan ya! 💪";
+      else if (score >= 70) feedback = "Bagus! Tinggal sedikit lagi untuk lebih hebat. 🔥";
+      else if (score >= 50) feedback = "Cukup! Ayo latihan lagi supaya makin paham. 📘";
+      else feedback = "Jangan menyerah. Coba belajar pelan-pelan dan ulangi latihan. 🌱";
+
+      if (isAuto) feedback = "Waktu habis. " + feedback;
+
+      document.getElementById('feedback-text').innerText = `Benar: ${correct} dari ${total}. ${feedback}`;
+
+      const nama = document.getElementById('nama').value.trim() || "-";
+      const sekolah = document.getElementById('sekolah').value.trim() || "-";
+      const mapel = document.getElementById('mapel').value || "-";
+      const waktu = new Date().toISOString();
+
+      const resultData = { waktu, nama, sekolah, mapel, score };
+
+      const key = "cbtResults";
+      const existing = JSON.parse(localStorage.getItem(key) || "[]");
+      existing.unshift(resultData);
+      localStorage.setItem(key, JSON.stringify(existing));
+
+      if (db) {
+        db.collection("results").add({
+          ...resultData,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(err => console.error("Firestore save error:", err));
+      }
+    }
+
+    function showTeacherLogin() {
+      document.getElementById('view-login').classList.add('hidden');
+      document.getElementById('view-teacher').classList.remove('hidden');
+      document.getElementById('teacher-login-form').classList.remove('hidden');
+      document.getElementById('teacher-data').classList.add('hidden');
+    }
+
+    function loginGuru() {
+      const pass = document.getElementById('guru-pass').value;
+      if (pass !== "clarakers") { alert("Password salah!"); return; }
+      document.getElementById('teacher-login-form').classList.add('hidden');
+      document.getElementById('teacher-data').classList.remove('hidden');
+      loadTeacherData();
+      // tampilkan bank soal default saat pertama masuk
+      setTimeout(() => renderQuestionManager(), 0);
+    }
+
+    function loadTeacherData() {
+      if (db) {
+        db.collection("results").orderBy("createdAt","desc").limit(200).get()
+          .then(snapshot => {
+            const rows = [];
+            snapshot.forEach(doc => rows.push(doc.data()));
+            renderTeacherTable(rows);
+          })
+          .catch(err => {
+            console.error("Firestore load error:", err);
+            const local = JSON.parse(localStorage.getItem("cbtResults") || "[]");
+            renderTeacherTable(local);
+          });
+      } else {
+        const local = JSON.parse(localStorage.getItem("cbtResults") || "[]");
+        renderTeacherTable(local);
+      }
+    }
+
+    function renderTeacherTable(data) {
+      teacherResultsCache = Array.isArray(data) ? data : [];
+      const tbody = document.getElementById('teacher-table-body');
+      tbody.innerHTML = "";
+
+      if (!data.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="padding:15px;color:#64748b;">Belum ada data hasil.</td></tr>`;
+        return;
+      }
+
+      data.forEach(item => {
+        const waktu = item.waktu ? new Date(item.waktu).toLocaleString() : "-";
+        const mapel = item.mapel === "matematika" ? "Numerasi" : (item.mapel === "bahasa" ? "Membaca" : (item.mapel || "-"));
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="padding:15px;border-top:1px solid #e2e8f0;">${waktu}</td>
+          <td style="padding:15px;border-top:1px solid #e2e8f0;">${item.nama || "-"}</td>
+          <td style="padding:15px;border-top:1px solid #e2e8f0;">${item.sekolah || "-"}</td>
+          <td style="padding:15px;border-top:1px solid #e2e8f0;">${mapel}</td>
+          <td style="padding:15px;border-top:1px solid #e2e8f0;font-weight:700;">${item.score ?? "-"}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+
+    // =========================
+    // DOWNLOAD HASIL (CSV/JSON)
+    // =========================
+    function safeText(v) {
+      if (v === null || v === undefined) return "";
+      return String(v).replace(/\r?\n/g, " ").trim();
+    }
+
+    function escapeAttr(v) {
+      return String(v ?? "").replace(/"/g, "&quot;");
+    }
+
+    function downloadBlob(filename, mime, content) {
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadResultsJSON() {
+      const data = (teacherResultsCache && teacherResultsCache.length)
+        ? teacherResultsCache
+        : JSON.parse(localStorage.getItem("cbtResults") || "[]");
+
+      const today = new Date().toISOString().slice(0,10);
+      downloadBlob(`hasil_cbt_${today}.json`, "application/json;charset=utf-8", JSON.stringify(data, null, 2));
+    }
+
+    function downloadResultsCSV() {
+      const data = (teacherResultsCache && teacherResultsCache.length)
+        ? teacherResultsCache
+        : JSON.parse(localStorage.getItem("cbtResults") || "[]");
+
+      const rows = [];
+      rows.push(["waktu","nama","sekolah","mapel","nilai"]);
+      data.forEach(item => {
+        const mapel = item.mapel === "matematika" ? "Numerasi" : (item.mapel === "bahasa" ? "Membaca" : (item.mapel || "-"));
+        rows.push([
+          safeText(item.waktu),
+          safeText(item.nama),
+          safeText(item.sekolah),
+          safeText(mapel),
+          (item.score ?? "")
+        ]);
+      });
+
+      const csv = rows.map(r => r.map(cell => {
+        const s = String(cell ?? "");
+        // escape CSV: wrap with quotes and double internal quotes
+        return `"${s.replace(/"/g, '""')}"`;
+      }).join(",")).join("\n");
+
+      const today = new Date().toISOString().slice(0,10);
+      downloadBlob(`hasil_cbt_${today}.csv`, "text/csv;charset=utf-8", csv);
+    }
+
+
+    // =========================
+    // STIMULUS IMAGE (LINK / FILE)
+    // =========================
+    function updateStimulusImagePreview(src) {
+      const wrap = document.getElementById("q-img-preview-wrap");
+      const img = document.getElementById("q-img-preview");
+      if (!wrap || !img) return;
+
+      if (!src) {
+        wrap.classList.add("hidden");
+        img.removeAttribute("src");
+        return;
+      }
+      img.src = src;
+      wrap.classList.remove("hidden");
+    }
+
+    function onStimulusImageUrlInput() {
+      // Jika user mengetik link, kita pakai link dan kosongkan data URL file
+      pendingStimulusImage = "";
+      const url = (document.getElementById("q-img-url")?.value || "").trim();
+      updateStimulusImagePreview(url);
+    }
+
+    function onStimulusImageFileChange(event) {
+      const file = event?.target?.files?.[0];
+      if (!file) return;
+
+      if (!file.type || !file.type.startsWith("image/")) {
+        alert("File harus berupa gambar.");
+        event.target.value = "";
+        return;
+      }
+
+      // Baca jadi data URL agar bisa disimpan ke localStorage
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingStimulusImage = String(reader.result || "");
+        // kosongkan url agar tidak bingung (yang dipakai adalah data URL)
+        const urlInput = document.getElementById("q-img-url");
+        if (urlInput) urlInput.value = "";
+        updateStimulusImagePreview(pendingStimulusImage);
+      };
+      reader.onerror = () => {
+        alert("Gagal membaca file gambar.");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearStimulusImage() {
+      pendingStimulusImage = "";
+      const urlInput = document.getElementById("q-img-url");
+      const fileInput = document.getElementById("q-img-file");
+      if (urlInput) urlInput.value = "";
+      if (fileInput) fileInput.value = "";
+      updateStimulusImagePreview("");
+    }
+
+    // =========================
+    // BANK SOAL (Tambah/Hapus)
+    // =========================
+    function bankKey(mapel) {
+      return mapel === "matematika" ? "cbtQuestionBank_matematika" : "cbtQuestionBank_bahasa";
+    }
+
+    function getBank(mapel) {
+      return mapel === "matematika" ? mathHOTS : indoHOTS;
+    }
+
+    function setBank(mapel, newBank) {
+      const cleaned = Array.isArray(newBank) ? newBank : [];
+      if (mapel === "matematika") mathHOTS = cleaned;
+      else indoHOTS = cleaned;
+      localStorage.setItem(bankKey(mapel), JSON.stringify(cleaned));
+    }
+
+    function deepCopy(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+    function renderQuestionManager() {
+      const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
+      const bank = getBank(mapel);
+
+      const box = document.getElementById("question-manager-list");
+      if (!box) return;
+
+      if (!bank.length) {
+        box.innerHTML = `<div style="padding:14px; color:#64748b;">Belum ada soal pada bank ini.</div>`;
+        return;
+      }
+
+      const rows = bank.map((q, idx) => {
+        const key = ["A","B","C","D"][q.a] || "-";
+        const stimulus = safeText(q.stimulus || "");
+        const stimulusShort = stimulus.length > 120 ? stimulus.slice(0,120) + "…" : stimulus;
+        const qText = safeText(q.q || "");
+        const qShort = qText.length > 140 ? qText.slice(0,140) + "…" : qText;
+        const imgThumb = q.img ? `<div style="margin-top:10px;"><img src="${escapeAttr(q.img)}" alt="Gambar stimulus" loading="lazy" referrerpolicy="no-referrer" style="max-width:180px; width:100%; height:auto; border-radius:12px; border:1px solid #e2e8f0; background:white;" /></div>` : "";
+
+        return `
+          <tr>
+            <td style="padding:12px; border-top:1px solid #e2e8f0; width:60px; font-weight:700;">${idx+1}</td>
+            <td style="padding:12px; border-top:1px solid #e2e8f0;">
+              <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Stimulus: ${stimulusShort || "-"}</div>
+              <div style="font-weight:700;">${qShort || "-"}</div>
+              ${imgThumb}
+              <div style="font-size:12px; color:#64748b; margin-top:6px;">
+                Kunci: <b>${key}</b>
+              </div>
+            </td>
+            <td style="padding:12px; border-top:1px solid #e2e8f0; width:140px; text-align:right;">
+              <button class="btn btn-danger" onclick="deleteQuestion(${idx})">Hapus</button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      box.innerHTML = `
+        <table style="width:100%; border-collapse: collapse;">
+          <thead style="background:#f8fafc;">
+            <tr>
+              <th style="padding:12px; text-align:left; width:60px;">No</th>
+              <th style="padding:12px; text-align:left;">Soal</th>
+              <th style="padding:12px; text-align:right; width:140px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    function addQuestion() {
+      const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
+
+      const stimulus = (document.getElementById("q-stimulus")?.value || "").trim();
+      const qText = (document.getElementById("q-text")?.value || "").trim();
+      const a = parseInt(document.getElementById("q-answer")?.value || "0", 10);
+
+      const imgUrl = (document.getElementById("q-img-url")?.value || "").trim();
+      const img = pendingStimulusImage || imgUrl;
+
+      const optA = (document.getElementById("q-opt-a")?.value || "").trim();
+      const optB = (document.getElementById("q-opt-b")?.value || "").trim();
+      const optC = (document.getElementById("q-opt-c")?.value || "").trim();
+      const optD = (document.getElementById("q-opt-d")?.value || "").trim();
+
+      if (!qText) { alert("Pertanyaan wajib diisi."); return; }
+      if (!optA || !optB || !optC || !optD) { alert("Semua opsi A-D wajib diisi."); return; }
+      if (![0,1,2,3].includes(a)) { alert("Kunci jawaban tidak valid."); return; }
+
+      const newQ = {
+        stimulus: stimulus || "-",
+        img: img || "",
+        q: qText,
+        opt: [optA, optB, optC, optD],
+        a
+      };
+
+      const bank = deepCopy(getBank(mapel));
+      bank.push(newQ);
+      setBank(mapel, bank);
+
+      // Bersihkan form
+      document.getElementById("q-stimulus").value = "";
+      clearStimulusImage();
+      document.getElementById("q-text").value = "";
+      document.getElementById("q-opt-a").value = "";
+      document.getElementById("q-opt-b").value = "";
+      document.getElementById("q-opt-c").value = "";
+      document.getElementById("q-opt-d").value = "";
+      document.getElementById("q-answer").value = "0";
+
+      renderQuestionManager();
+      alert("Soal berhasil ditambahkan!");
+    }
+
+    function deleteQuestion(idx) {
+      const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
+      const bank = deepCopy(getBank(mapel));
+
+      if (idx < 0 || idx >= bank.length) return;
+      const ok = confirm(`Hapus soal nomor ${idx+1}?`);
+      if (!ok) return;
+
+      bank.splice(idx, 1);
+      setBank(mapel, bank);
+      renderQuestionManager();
+    }
+
+    function resetQuestionBank() {
+      const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
+      const ok = confirm("Reset bank soal mapel ini ke default? (soal buatan guru akan hilang)");
+      if (!ok) return;
+
+      // hapus storage dan kembalikan ke default
+      localStorage.removeItem(bankKey(mapel));
+      if (mapel === "matematika") setBank(mapel, deepCopy(defaultMathHOTS));
+      else setBank(mapel, deepCopy(defaultIndoHOTS));
+
+      renderQuestionManager();
+      alert("Bank soal berhasil di-reset.");
+    }
+
+  </script>
+</body>
+</html>
