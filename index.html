@@ -226,21 +226,104 @@
 
           <textarea id="q-text" rows="2" placeholder="Pertanyaan (wajib)" style="width:100%; padding:12px; border:1px solid #cbd5e1; border-radius:12px; box-sizing:border-box;"></textarea>
 
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-            <input id="q-opt-a" placeholder="Opsi A" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
-            <input id="q-opt-b" placeholder="Opsi B" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
-            <input id="q-opt-c" placeholder="Opsi C" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
-            <input id="q-opt-d" placeholder="Opsi D" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <label style="font-weight:600;">Jenis Soal:</label>
+            <select id="q-type" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;" onchange="onQuestionTypeChange()">
+              <option value="mc">Pilihan Ganda</option>
+              <option value="mcc">Pilihan Ganda Kompleks</option>
+              <option value="tf">Benar / Salah (Pernyataan)</option>
+            </select>
+            <small id="q-type-hint" style="color:#64748b;">Pilih jenis soal sebelum mengisi opsi/kunci.</small>
           </div>
 
-          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <label style="font-weight:600;">Kunci:</label>
-            <select id="q-answer" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
-              <option value="0">A</option>
-              <option value="1">B</option>
-              <option value="2">C</option>
-              <option value="3">D</option>
-            </select>
+          <!-- PG (single answer) -->
+          <div id="q-type-mc">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 6px;">
+              <input id="q-opt-a" placeholder="Opsi A" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+              <input id="q-opt-b" placeholder="Opsi B" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+              <input id="q-opt-c" placeholder="Opsi C" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+              <input id="q-opt-d" placeholder="Opsi D" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top: 8px;">
+              <label style="font-weight:600;">Kunci:</label>
+              <select id="q-answer" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+                <option value="0">A</option>
+                <option value="1">B</option>
+                <option value="2">C</option>
+                <option value="3">D</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- PG Kompleks (multi correct, max 3 dari 5) -->
+          <div id="q-type-mcc" class="hidden">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top: 6px;">
+              <input id="q2-opt-a" placeholder="Opsi A" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+              <input id="q2-opt-b" placeholder="Opsi B" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+              <input id="q2-opt-c" placeholder="Opsi C" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+              <input id="q2-opt-d" placeholder="Opsi D" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+              <input id="q2-opt-e" placeholder="Opsi E" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top: 8px;">
+              <label style="font-weight:600;">Jawaban Benar (maks 3):</label>
+              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="q2-ans-0" onchange="onMCCKeyToggle(0)" /> A</label>
+              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="q2-ans-1" onchange="onMCCKeyToggle(1)" /> B</label>
+              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="q2-ans-2" onchange="onMCCKeyToggle(2)" /> C</label>
+              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="q2-ans-3" onchange="onMCCKeyToggle(3)" /> D</label>
+              <label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" id="q2-ans-4" onchange="onMCCKeyToggle(4)" /> E</label>
+              <span id="q2-ans-count" style="font-size:12px; color:#64748b;">0 dipilih</span>
+            </div>
+          </div>
+
+          <!-- Benar/Salah dengan stimulus + pernyataan -->
+          <div id="q-type-tf" class="hidden">
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top: 6px;">
+              <label style="font-weight:600;">Jumlah Pernyataan:</label>
+              <select id="q3-count" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;" onchange="onTFCountChange()">
+                <option value="3">3</option>
+                <option value="4" selected>4</option>
+              </select>
+              <small style="color:#64748b;">Isi 3–4 pernyataan dan pilih Benar/Salah untuk kunci.</small>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr; gap:10px; margin-top: 8px;">
+              <div style="display:grid; grid-template-columns: 1fr 160px; gap:10px; align-items:center;">
+                <input id="q3-s0" placeholder="Pernyataan 1" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+                <select id="q3-a0" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+                  <option value="true">Benar</option>
+                  <option value="false">Salah</option>
+                </select>
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 160px; gap:10px; align-items:center;">
+                <input id="q3-s1" placeholder="Pernyataan 2" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+                <select id="q3-a1" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+                  <option value="true">Benar</option>
+                  <option value="false">Salah</option>
+                </select>
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1fr 160px; gap:10px; align-items:center;">
+                <input id="q3-s2" placeholder="Pernyataan 3" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+                <select id="q3-a2" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+                  <option value="true">Benar</option>
+                  <option value="false">Salah</option>
+                </select>
+              </div>
+
+              <div id="q3-row-3" style="display:grid; grid-template-columns: 1fr 160px; gap:10px; align-items:center;">
+                <input id="q3-s3" placeholder="Pernyataan 4" style="padding:12px; border:1px solid #cbd5e1; border-radius:12px;" />
+                <select id="q3-a3" style="padding:10px; border:1px solid #cbd5e1; border-radius:8px;">
+                  <option value="true">Benar</option>
+                  <option value="false">Salah</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top: 10px;">
             <button class="btn btn-primary" id="q-save-btn" onclick="saveQuestion()">Simpan Soal</button>
             <button class="btn btn-outline hidden" id="q-cancel-edit-btn" type="button" onclick="cancelEditQuestion()">Batal Edit</button>
             <span class="hidden" id="q-editing-indicator" style="font-size:12px; color:#64748b;">Sedang mengedit soal.</span>
@@ -446,10 +529,69 @@
         opt: ["Timur","Barat","Utara","Selatan"], a: 1 }
     ];
 
+// =========================
+// NORMALISASI BANK SOAL & TIPE SOAL
+// =========================
+const EXAM_BLUEPRINT = {
+  matematika: { mc: 15, mcc: 5, tf: 5 }, // total 25
+  bahasa: { mc: 20, mcc: 5, tf: 5 }      // total 30
+};
+
+function normalizeQuestion(q) {
+  const qq = Object.assign({}, q || {});
+  if (!qq.type) {
+    if (Array.isArray(qq.statements)) qq.type = "tf";
+    else if (Array.isArray(qq.a_multi)) qq.type = "mcc";
+    else qq.type = "mc";
+  }
+  qq.stimulus = (qq.stimulus === undefined || qq.stimulus === null) ? "-" : qq.stimulus;
+  qq.img = (qq.img === undefined || qq.img === null) ? "" : qq.img;
+  qq.q = (qq.q === undefined || qq.q === null) ? "" : qq.q;
+
+  if (qq.type === "mc") {
+    qq.opt = Array.isArray(qq.opt) ? qq.opt.slice(0, 4) : [];
+    qq.a = Number.isFinite(qq.a) ? qq.a : parseInt(String(qq.a ?? "0"), 10);
+    if (!Number.isFinite(qq.a) || qq.a < 0) qq.a = 0;
+  } else if (qq.type === "mcc") {
+    qq.opt = Array.isArray(qq.opt) ? qq.opt.slice(0, 5) : [];
+    if (!Array.isArray(qq.a_multi)) {
+      if (Array.isArray(qq.a)) qq.a_multi = qq.a;
+      else if (Number.isFinite(qq.a)) qq.a_multi = [qq.a];
+      else qq.a_multi = [];
+    }
+    const cleaned = (qq.a_multi || []).map(v => parseInt(String(v), 10)).filter(v => Number.isFinite(v) && v >= 0 && v < 5);
+    qq.a_multi = Array.from(new Set(cleaned)).slice(0, 3);
+  } else if (qq.type === "tf") {
+    qq.statements = Array.isArray(qq.statements) ? qq.statements.slice(0, 4) : [];
+    // minimal 3 pernyataan
+    if (qq.statements.length < 3) {
+      while (qq.statements.length < 3) qq.statements.push("");
+    }
+    qq.a_tf = Array.isArray(qq.a_tf) ? qq.a_tf : [];
+    qq.a_tf = qq.a_tf.map(v => (v === true || v === "true" || v === 1 || v === "1")).slice(0, qq.statements.length);
+    while (qq.a_tf.length < qq.statements.length) qq.a_tf.push(false);
+  } else {
+    // fallback ke PG
+    qq.type = "mc";
+    qq.opt = Array.isArray(qq.opt) ? qq.opt.slice(0, 4) : [];
+    qq.a = 0;
+  }
+  return qq;
+}
+
+function normalizeBank(bank) {
+  return (Array.isArray(bank) ? bank : []).map(normalizeQuestion);
+}
+
+function blueprintTotal(mapel) {
+  const bp = EXAM_BLUEPRINT[mapel] || { mc: 0, mcc: 0, tf: 0 };
+  return (bp.mc || 0) + (bp.mcc || 0) + (bp.tf || 0);
+}
+
     // Bank soal yang bisa diubah guru (tersimpan di localStorage).
     // Jika tidak ada di localStorage, maka memakai bank default di bawah.
-    let mathHOTS = JSON.parse(localStorage.getItem("cbtQuestionBank_matematika") || "null") || JSON.parse(JSON.stringify(defaultMathHOTS));
-    let indoHOTS = JSON.parse(localStorage.getItem("cbtQuestionBank_bahasa") || "null") || JSON.parse(JSON.stringify(defaultIndoHOTS));
+    let mathHOTS = normalizeBank(JSON.parse(localStorage.getItem("cbtQuestionBank_matematika") || "null") || JSON.parse(JSON.stringify(defaultMathHOTS)));
+    let indoHOTS = normalizeBank(JSON.parse(localStorage.getItem("cbtQuestionBank_bahasa") || "null") || JSON.parse(JSON.stringify(defaultIndoHOTS)));
 
     let currentQuestions = [];
     let userAnswers = {};
@@ -474,24 +616,79 @@
     let pendingStimulusImage = "";
 
     
-    // Ambil soal secara acak sesuai kuota mapel (Matematika 25, Bahasa Indonesia 30)
-    const EXAM_COUNTS = { matematika: 25, bahasa: 30 };
+    // =========================
+// RANDOMISASI SOAL SESUAI KOMPOSISI
+// =========================
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 
-    function shuffleInPlace(arr) {
-      for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-      }
-      return arr;
-    }
+function buildExamQuestions(mapel, rawBank) {
+  const bank = normalizeBank(deepCopy(rawBank || []));
+  const bp = EXAM_BLUEPRINT[mapel] || { mc: 0, mcc: 0, tf: 0 };
+  const targetTotal = blueprintTotal(mapel);
 
-    function sampleQuestions(bank, count) {
-      // Deep copy agar tidak mengubah bank asli (khususnya saat guru edit bank soal)
-      const copy = JSON.parse(JSON.stringify(bank || []));
-      if (copy.length <= count) return copy;
-      shuffleInPlace(copy);
-      return copy.slice(0, count);
+  const indices = bank.map((_, i) => i);
+  const groups = { mc: [], mcc: [], tf: [] };
+  indices.forEach(i => {
+    const t = bank[i]?.type || "mc";
+    if (groups[t]) groups[t].push(i);
+    else groups.mc.push(i);
+  });
+  Object.keys(groups).forEach(k => shuffleInPlace(groups[k]));
+
+  const pickedIdx = [];
+  const used = new Set();
+
+  function take(typeKey, n) {
+    const g = groups[typeKey] || [];
+    while (n > 0 && g.length > 0) {
+      const idx = g.pop();
+      if (used.has(idx)) continue;
+      used.add(idx);
+      pickedIdx.push(idx);
+      n--;
     }
+    return n;
+  }
+
+  let deficit = 0;
+  deficit += take("mc", bp.mc || 0);
+  deficit += take("mcc", bp.mcc || 0);
+  deficit += take("tf", bp.tf || 0);
+
+  if (deficit > 0) {
+    // Top-up dari sisa soal apa pun agar jumlah tetap terpenuhi
+    const pool = indices.filter(i => !used.has(i));
+    shuffleInPlace(pool);
+    while (deficit > 0 && pool.length > 0) {
+      const idx = pool.pop();
+      used.add(idx);
+      pickedIdx.push(idx);
+      deficit--;
+    }
+  }
+
+  const selected = pickedIdx.map(i => bank[i]);
+  shuffleInPlace(selected);
+  return selected.slice(0, targetTotal);
+}
+
+function toNumberArray(v) {
+  return Array.isArray(v) ? v.map(x => parseInt(String(x), 10)).filter(x => Number.isFinite(x)) : [];
+}
+
+function isSameSet(a, b) {
+  const aa = Array.from(new Set(toNumberArray(a))).sort((x, y) => x - y);
+  const bb = Array.from(new Set(toNumberArray(b))).sort((x, y) => x - y);
+  if (aa.length !== bb.length) return false;
+  for (let i = 0; i < aa.length; i++) if (aa[i] !== bb[i]) return false;
+  return true;
+}
 
 function startExam() {
       const nama = document.getElementById('nama').value.trim();
@@ -500,9 +697,13 @@ function startExam() {
 
       if (!nama || !sekolah || !mapel) { alert("Data harus lengkap!"); return; }
 
-            const bank = (mapel === 'matematika') ? mathHOTS : indoHOTS;
-      const quota = (mapel === 'matematika') ? EXAM_COUNTS.matematika : EXAM_COUNTS.bahasa;
-      currentQuestions = sampleQuestions(bank, quota);
+      const bank = (mapel === 'matematika') ? mathHOTS : indoHOTS;
+      const expected = blueprintTotal(mapel);
+      currentQuestions = buildExamQuestions(mapel, bank);
+
+      if (currentQuestions.length < expected) {
+        alert(`Peringatan: bank soal belum mencukupi untuk komposisi ujian. Dibutuhkan ${expected} soal, tersedia ${currentQuestions.length} soal.`);
+      }
 
       document.getElementById('student-info-display').innerText = `${nama} - ${sekolah}`;
       document.getElementById('exam-subject-title').innerText = (mapel === 'matematika') ? "Literasi Numerasi" : "Literasi Membaca";
@@ -521,28 +722,102 @@ function startExam() {
 
     function loadQuestion(index) {
       currentIndex = index;
-      const qData = currentQuestions[index];
+      const qData = normalizeQuestion(currentQuestions[index] || {});
+      currentQuestions[index] = qData; // pastikan ternormalisasi
 
       const content = document.getElementById('question-content');
-      let optionsHTML = '';
-
-      qData.opt.forEach((opt, i) => {
-        const checked = userAnswers[index] === i ? 'checked' : '';
-        optionsHTML += `
-          <label class="option-item">
-            <input type="radio" name="ans" value="${i}" onclick="saveAnswer(${index}, ${i})" ${checked}>
-            <span>${String.fromCharCode(65 + i)}. ${opt}</span>
-          </label>
-        `;
-      });
+      let bodyHTML = '';
 
       const stimImgHtml = qData.img ? `<img src="${escapeAttr(qData.img)}" alt="Gambar stimulus" loading="lazy" referrerpolicy="no-referrer" />` : "";
+      const stimulusText = (qData.stimulus && qData.stimulus !== "-") ? qData.stimulus : "";
 
-      content.innerHTML = `
-        <div class="stimulus-box">${qData.stimulus || ""}${stimImgHtml}</div>
-        <div class="question-text">No ${index + 1}. ${qData.q}</div>
-        <div class="options-list">${optionsHTML}</div>
-      `;
+      const stimulusHTML = (stimulusText || stimImgHtml)
+        ? `<div class="stimulus-box">${stimulusText}${stimImgHtml}</div>`
+        : "";
+
+      // Render berdasarkan tipe
+      if (qData.type === "mc") {
+        let optionsHTML = '';
+        (qData.opt || []).forEach((opt, i) => {
+          const checked = userAnswers[index] === i ? 'checked' : '';
+          optionsHTML += `
+            <label class="option-item">
+              <input type="radio" name="ans" value="${i}" onclick="saveAnswer(${index}, ${i})" ${checked}>
+              <span>${String.fromCharCode(65 + i)}. ${opt}</span>
+            </label>
+          `;
+        });
+
+        bodyHTML = `
+          ${stimulusHTML}
+          <div class="question-text">No ${index + 1}. ${qData.q}</div>
+          <div class="options-list">${optionsHTML}</div>
+        `;
+      } else if (qData.type === "mcc") {
+        let optionsHTML = '';
+        const selected = Array.isArray(userAnswers[index]) ? userAnswers[index] : [];
+        (qData.opt || []).forEach((opt, i) => {
+          const checked = selected.includes(i) ? 'checked' : '';
+          optionsHTML += `
+            <label class="option-item" style="align-items:flex-start;">
+              <input type="checkbox" value="${i}" onchange="toggleMultiAnswer(${index}, ${i}, this)" ${checked}>
+              <span>${String.fromCharCode(65 + i)}. ${opt}</span>
+            </label>
+          `;
+        });
+
+        bodyHTML = `
+          ${stimulusHTML}
+          <div class="question-text">No ${index + 1}. ${qData.q}</div>
+          <div style="color:#64748b; font-size: 12px; margin: -6px 0 12px;">Pilih maksimal <b>3</b> jawaban.</div>
+          <div class="options-list">${optionsHTML}</div>
+        `;
+      } else if (qData.type === "tf") {
+        const n = (qData.statements || []).length;
+        let ansArr = userAnswers[index];
+        if (!Array.isArray(ansArr) || ansArr.length !== n) {
+          ansArr = Array(n).fill(null);
+          userAnswers[index] = ansArr;
+        }
+
+        const statementsHTML = (qData.statements || []).map((st, si) => {
+          const v = ansArr[si];
+          const cTrue = v === true ? "checked" : "";
+          const cFalse = v === false ? "checked" : "";
+          return `
+            <div class="option-item" style="flex-direction:column; align-items:flex-start; gap:10px;">
+              <div style="font-weight:600; line-height:1.4;">${si + 1}. ${safeText(st)}</div>
+              <div style="display:flex; gap:16px; flex-wrap:wrap;">
+                <label style="display:flex; align-items:center; gap:6px;">
+                  <input type="radio" name="tf-${index}-${si}" onchange="setTFAnswer(${index}, ${si}, true)" ${cTrue}>
+                  Benar
+                </label>
+                <label style="display:flex; align-items:center; gap:6px;">
+                  <input type="radio" name="tf-${index}-${si}" onchange="setTFAnswer(${index}, ${si}, false)" ${cFalse}>
+                  Salah
+                </label>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        bodyHTML = `
+          ${stimulusHTML}
+          <div class="question-text">No ${index + 1}. ${qData.q}</div>
+          <div style="color:#64748b; font-size: 12px; margin: -6px 0 12px;">Tentukan Benar/Salah untuk setiap pernyataan.</div>
+          <div class="options-list">${statementsHTML}</div>
+        `;
+      } else {
+        // fallback
+        qData.type = "mc";
+        bodyHTML = `
+          ${stimulusHTML}
+          <div class="question-text">No ${index + 1}. ${qData.q}</div>
+          <div style="color:#ef4444;">Tipe soal tidak dikenali. Mohon periksa bank soal.</div>
+        `;
+      }
+
+      content.innerHTML = bodyHTML;
 
       document.getElementById('btn-prev').disabled = index === 0;
       document.getElementById('btn-next').classList.toggle('hidden', index === currentQuestions.length - 1);
@@ -551,7 +826,44 @@ function startExam() {
       updateNavStatus();
     }
 
-    function saveAnswer(qIdx, optIdx) { userAnswers[qIdx] = optIdx; updateNavStatus(); }
+    function saveAnswer(qIdx, optIdx) {
+      userAnswers[qIdx] = optIdx;
+      updateNavStatus();
+    }
+
+    function toggleMultiAnswer(qIdx, optIdx, el) {
+      let arr = userAnswers[qIdx];
+      if (!Array.isArray(arr)) arr = [];
+      const exists = arr.includes(optIdx);
+
+      if (el && el.checked) {
+        if (!exists && arr.length >= 3) {
+          el.checked = false;
+          alert("Maksimal 3 jawaban boleh dipilih.");
+          return;
+        }
+        if (!exists) arr.push(optIdx);
+      } else {
+        // unchecked
+        arr = arr.filter(x => x !== optIdx);
+      }
+
+      // normalisasi unik & urut
+      arr = Array.from(new Set(arr)).sort((a, b) => a - b);
+      userAnswers[qIdx] = arr;
+      updateNavStatus();
+    }
+
+    function setTFAnswer(qIdx, stmtIdx, val) {
+      const q = currentQuestions[qIdx];
+      const n = (q && q.statements) ? q.statements.length : 0;
+      let arr = userAnswers[qIdx];
+      if (!Array.isArray(arr) || arr.length !== n) arr = Array(n).fill(null);
+      arr[stmtIdx] = !!val;
+      userAnswers[qIdx] = arr;
+      updateNavStatus();
+    }
+
     function toggleFlag() { flags[currentIndex] = !flags[currentIndex]; updateNavStatus(); }
     function prevQuestion() { if (currentIndex > 0) loadQuestion(currentIndex - 1); }
     function nextQuestion() { if (currentIndex < currentQuestions.length - 1) loadQuestion(currentIndex + 1); }
@@ -570,14 +882,29 @@ function startExam() {
     }
 
     function updateNavStatus() {
-      currentQuestions.forEach((_, i) => {
-        const nav = document.getElementById(`nav-${i}`);
-        if (!nav) return;
-        nav.classList.toggle('active', i === currentIndex);
-        nav.classList.toggle('answered', userAnswers[i] !== undefined);
-        nav.classList.toggle('flagged', !!flags[i]);
-      });
+  currentQuestions.forEach((qRaw, i) => {
+    const q = normalizeQuestion(qRaw || {});
+    const nav = document.getElementById(`nav-${i}`);
+    if (!nav) return;
+
+    const ans = userAnswers[i];
+    let answered = false;
+
+    if (q.type === "mc") {
+      answered = ans !== undefined && ans !== null;
+    } else if (q.type === "mcc") {
+      answered = Array.isArray(ans) && ans.length > 0;
+    } else if (q.type === "tf") {
+      answered = Array.isArray(ans) && Array.isArray(q.statements) && ans.length === q.statements.length && ans.every(v => v === true || v === false);
+    } else {
+      answered = ans !== undefined && ans !== null;
     }
+
+    nav.classList.toggle('active', i === currentIndex);
+    nav.classList.toggle('answered', answered);
+    nav.classList.toggle('flagged', !!flags[i]);
+  });
+}
 
     function startTimer() {
       clearInterval(timerInterval);
@@ -608,13 +935,35 @@ function startExam() {
 
       clearInterval(timerInterval);
 
-      let correct = 0;
-      currentQuestions.forEach((q, idx) => { if (userAnswers[idx] === q.a) correct++; });
+      
+let points = 0;
 
-      const total = currentQuestions.length;
-      const score = Math.round((correct / total) * 100);
+currentQuestions.forEach((qRaw, idx) => {
+  const q = normalizeQuestion(qRaw || {});
+  const ans = userAnswers[idx];
 
-      document.getElementById('view-exam').classList.add('hidden');
+  if (q.type === "mc") {
+    if (ans === q.a) points += 1;
+  } else if (q.type === "mcc") {
+    if (isSameSet(ans, q.a_multi)) points += 1;
+  } else if (q.type === "tf") {
+    const n = Array.isArray(q.statements) ? q.statements.length : 0;
+    if (n > 0) {
+      const key = Array.isArray(q.a_tf) ? q.a_tf : [];
+      const arr = Array.isArray(ans) ? ans : [];
+      let correctItems = 0;
+      for (let i = 0; i < n; i++) {
+        if (arr[i] === key[i]) correctItems++;
+      }
+      points += (correctItems / n);
+    }
+  } else {
+    if (ans === q.a) points += 1;
+  }
+});
+
+const total = currentQuestions.length;
+const score = total ? Math.round((points / total) * 100) : 0;document.getElementById('view-exam').classList.add('hidden');
       document.getElementById('view-result').classList.remove('hidden');
       document.getElementById('final-score').innerText = score;
 
@@ -1016,7 +1365,7 @@ function startExam() {
     }
 
     function setBank(mapel, newBank) {
-      const cleaned = Array.isArray(newBank) ? newBank : [];
+      const cleaned = normalizeBank(Array.isArray(newBank) ? newBank : []);
       if (mapel === "matematika") mathHOTS = cleaned;
       else indoHOTS = cleaned;
       localStorage.setItem(bankKey(mapel), JSON.stringify(cleaned));
@@ -1024,62 +1373,84 @@ function startExam() {
 
     function deepCopy(obj) { return JSON.parse(JSON.stringify(obj)); }
 
-    function renderQuestionManager() {
-      // jika ganti mapel/refresh list, keluar dari mode edit
-      if (editingQuestionIndex !== null) cancelEditQuestion();
-      const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
-      const bank = getBank(mapel);
+    function typeLabel(t) {
+  if (t === "mc") return "PG";
+  if (t === "mcc") return "PG Kompleks";
+  if (t === "tf") return "Benar/Salah";
+  return t || "-";
+}
 
-      const box = document.getElementById("question-manager-list");
-      if (!box) return;
+function renderQuestionManager() {
+  // jika ganti mapel/refresh list, keluar dari mode edit
+  if (editingQuestionIndex !== null) cancelEditQuestion();
+  const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
+  const bank = normalizeBank(getBank(mapel));
 
-      if (!bank.length) {
-        box.innerHTML = `<div style="padding:14px; color:#64748b;">Belum ada soal pada bank ini.</div>`;
-        return;
-      }
+  const box = document.getElementById("question-manager-list");
+  if (!box) return;
 
-      const rows = bank.map((q, idx) => {
-        const key = ["A","B","C","D"][q.a] || "-";
-        const stimulus = safeText(q.stimulus || "");
-        const stimulusShort = stimulus.length > 120 ? stimulus.slice(0,120) + "…" : stimulus;
-        const qText = safeText(q.q || "");
-        const qShort = qText.length > 140 ? qText.slice(0,140) + "…" : qText;
-        const imgThumb = q.img ? `<div style="margin-top:10px;"><img src="${escapeAttr(q.img)}" alt="Gambar stimulus" loading="lazy" referrerpolicy="no-referrer" style="max-width:180px; width:100%; height:auto; border-radius:12px; border:1px solid #e2e8f0; background:white;" /></div>` : "";
+  if (!bank.length) {
+    box.innerHTML = `<div style="padding:14px; color:#64748b;">Belum ada soal pada bank ini.</div>`;
+    return;
+  }
 
-        return `
-          <tr>
-            <td style="padding:12px; border-top:1px solid #e2e8f0; width:60px; font-weight:700;">${idx+1}</td>
-            <td style="padding:12px; border-top:1px solid #e2e8f0;">
-              <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Stimulus: ${stimulusShort || "-"}</div>
-              <div style="font-weight:700;">${qShort || "-"}</div>
-              ${imgThumb}
-              <div style="font-size:12px; color:#64748b; margin-top:6px;">
-                Kunci: <b>${key}</b>
-              </div>
-            </td>
-            <td style="padding:12px; border-top:1px solid #e2e8f0; width:140px; text-align:right;">
-              <button class="btn btn-outline" onclick="startEditQuestion(${idx})">Edit</button>
-              <button class="btn btn-danger" onclick="deleteQuestion(${idx})">Hapus</button>
-            </td>
-          </tr>
-        `;
-      }).join("");
+  const rows = bank.map((qRaw, idx) => {
+    const q = normalizeQuestion(qRaw || {});
+    const stimulus = safeText(q.stimulus || "");
+    const stimulusShort = stimulus.length > 120 ? stimulus.slice(0, 120) + "…" : stimulus;
 
-      box.innerHTML = `
-        <table style="width:100%; border-collapse: collapse;">
-          <thead style="background:#f8fafc;">
-            <tr>
-              <th style="padding:12px; text-align:left; width:60px;">No</th>
-              <th style="padding:12px; text-align:left;">Soal</th>
-              <th style="padding:12px; text-align:right; width:140px;">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
+    const qText = safeText(q.q || "");
+    const qShort = qText.length > 140 ? qText.slice(0, 140) + "…" : qText;
+
+    const badge = `<span style="display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:12px; font-weight:700;">${typeLabel(q.type)}</span>`;
+
+    let k = "-";
+    if (q.type === "mc") {
+      k = ["A","B","C","D"][q.a] || "-";
+    } else if (q.type === "mcc") {
+      const arr = Array.isArray(q.a_multi) ? q.a_multi : [];
+      k = arr.length ? arr.map(i => ["A","B","C","D","E"][i] || "?").join(", ") : "-";
+    } else if (q.type === "tf") {
+      k = `${(q.statements || []).length} pernyataan`;
     }
 
-    function setQuestionEditUI(editing) {
+    const imgThumb = q.img ? `<div style="margin-top:10px;"><img src="${escapeAttr(q.img)}" alt="Gambar stimulus" loading="lazy" referrerpolicy="no-referrer" style="max-width:180px; width:100%; height:auto; border-radius:12px; border:1px solid #e2e8f0; background:white;" /></div>` : "";
+
+    return `
+      <tr>
+        <td style="padding:12px; border-top:1px solid #e2e8f0; width:60px; font-weight:700;">${idx + 1}</td>
+        <td style="padding:12px; border-top:1px solid #e2e8f0;">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px;">
+            ${badge}
+            <div style="font-size:12px; color:#64748b;">Kunci: <b>${safeText(k)}</b></div>
+          </div>
+          <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Stimulus: ${stimulusShort || "-"}</div>
+          <div style="font-weight:700;">${qShort || "-"}</div>
+          ${imgThumb}
+        </td>
+        <td style="padding:12px; border-top:1px solid #e2e8f0; width:160px; text-align:right;">
+          <button class="btn btn-outline" onclick="startEditQuestion(${idx})">Edit</button>
+          <button class="btn btn-danger" onclick="deleteQuestion(${idx})">Hapus</button>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  box.innerHTML = `
+    <table style="width:100%; border-collapse: collapse;">
+      <thead style="background:#f8fafc;">
+        <tr>
+          <th style="padding:12px; text-align:left; width:60px;">No</th>
+          <th style="padding:12px; text-align:left;">Soal</th>
+          <th style="padding:12px; text-align:right; width:160px;">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function setQuestionEditUI(editing) {
       const saveBtn = document.getElementById("q-save-btn");
       const cancelBtn = document.getElementById("q-cancel-edit-btn");
       const indicator = document.getElementById("q-editing-indicator");
@@ -1090,102 +1461,259 @@ function startExam() {
     }
 
     function cancelEditQuestion() {
-      editingQuestionIndex = null;
-      setQuestionEditUI(false);
+  editingQuestionIndex = null;
+  setQuestionEditUI(false);
 
-      // Bersihkan form
-      document.getElementById("q-stimulus").value = "";
-      clearStimulusImage();
-      document.getElementById("q-text").value = "";
-      document.getElementById("q-opt-a").value = "";
-      document.getElementById("q-opt-b").value = "";
-      document.getElementById("q-opt-c").value = "";
-      document.getElementById("q-opt-d").value = "";
-      document.getElementById("q-answer").value = "0";
+  // Bersihkan form umum
+  document.getElementById("q-stimulus").value = "";
+  clearStimulusImage();
+  document.getElementById("q-text").value = "";
+
+  // reset tipe
+  const typeSel = document.getElementById("q-type");
+  if (typeSel) typeSel.value = "mc";
+
+  // PG
+  const idsMC = ["q-opt-a","q-opt-b","q-opt-c","q-opt-d"];
+  idsMC.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  const ansSel = document.getElementById("q-answer");
+  if (ansSel) ansSel.value = "0";
+
+  // PG Kompleks
+  const idsMCC = ["q2-opt-a","q2-opt-b","q2-opt-c","q2-opt-d","q2-opt-e"];
+  idsMCC.forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  for (let i = 0; i < 5; i++) {
+    const cb = document.getElementById(`q2-ans-${i}`);
+    if (cb) cb.checked = false;
+  }
+  updateMCCKeyCount();
+
+  // Benar/Salah
+  const countSel = document.getElementById("q3-count");
+  if (countSel) countSel.value = "4";
+  for (let i = 0; i < 4; i++) {
+    const s = document.getElementById(`q3-s${i}`);
+    const a = document.getElementById(`q3-a${i}`);
+    if (s) s.value = "";
+    if (a) a.value = (i === 0) ? "true" : "false";
+  }
+  onTFCountChange();
+
+  onQuestionTypeChange();
+}
+
+function startEditQuestion(idx) {
+  const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
+  const bank = normalizeBank(getBank(mapel));
+  if (!bank || idx < 0 || idx >= bank.length) return;
+
+  const q = normalizeQuestion(bank[idx]);
+  editingQuestionIndex = idx;
+
+  // umum
+  document.getElementById("q-stimulus").value = q.stimulus || "";
+  document.getElementById("q-text").value = q.q || "";
+
+  // image
+  const img = String(q.img || "").trim();
+  const urlInput = document.getElementById("q-img-url");
+  const fileInput = document.getElementById("q-img-file");
+  if (fileInput) fileInput.value = "";
+
+  if (img && img.startsWith("data:image")) {
+    pendingStimulusImage = img;
+    if (urlInput) urlInput.value = "";
+    updateStimulusImagePreview(img);
+  } else {
+    pendingStimulusImage = "";
+    if (urlInput) urlInput.value = img;
+    updateStimulusImagePreview(img);
+  }
+
+  // set tipe
+  const typeSel = document.getElementById("q-type");
+  if (typeSel) typeSel.value = q.type || "mc";
+  onQuestionTypeChange();
+
+  if (q.type === "mc") {
+    document.getElementById("q-opt-a").value = q.opt?.[0] || "";
+    document.getElementById("q-opt-b").value = q.opt?.[1] || "";
+    document.getElementById("q-opt-c").value = q.opt?.[2] || "";
+    document.getElementById("q-opt-d").value = q.opt?.[3] || "";
+    document.getElementById("q-answer").value = String(q.a ?? 0);
+  } else if (q.type === "mcc") {
+    document.getElementById("q2-opt-a").value = q.opt?.[0] || "";
+    document.getElementById("q2-opt-b").value = q.opt?.[1] || "";
+    document.getElementById("q2-opt-c").value = q.opt?.[2] || "";
+    document.getElementById("q2-opt-d").value = q.opt?.[3] || "";
+    document.getElementById("q2-opt-e").value = q.opt?.[4] || "";
+
+    const key = Array.isArray(q.a_multi) ? q.a_multi : [];
+    for (let i = 0; i < 5; i++) {
+      const cb = document.getElementById(`q2-ans-${i}`);
+      if (cb) cb.checked = key.includes(i);
+    }
+    updateMCCKeyCount();
+  } else if (q.type === "tf") {
+    const n = (q.statements || []).length;
+    const countSel = document.getElementById("q3-count");
+    if (countSel) countSel.value = (n <= 3) ? "3" : "4";
+    onTFCountChange();
+
+    for (let i = 0; i < 4; i++) {
+      const row = document.getElementById(`q3-row-${i}`);
+      const s = document.getElementById(`q3-s${i}`);
+      const a = document.getElementById(`q3-a${i}`);
+      if (s) s.value = q.statements?.[i] || "";
+      if (a) a.value = String(q.a_tf?.[i] ?? false);
+      // row 3 handled by onTFCountChange
+    }
+  }
+
+  setQuestionEditUI(true);
+  document.getElementById("q-text")?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+// =========================
+// FORM TIPE SOAL (Guru)
+// =========================
+function onQuestionTypeChange() {
+  const type = document.getElementById("q-type")?.value || "mc";
+  const secMC = document.getElementById("q-type-mc");
+  const secMCC = document.getElementById("q-type-mcc");
+  const secTF = document.getElementById("q-type-tf");
+  if (secMC) secMC.classList.toggle("hidden", type !== "mc");
+  if (secMCC) secMCC.classList.toggle("hidden", type !== "mcc");
+  if (secTF) secTF.classList.toggle("hidden", type !== "tf");
+
+  const hint = document.getElementById("q-type-hint");
+  if (hint) {
+    if (type === "mc") hint.textContent = "Pilihan ganda biasa: 1 jawaban benar dari A–D.";
+    else if (type === "mcc") hint.textContent = "PG kompleks: pilih 1–3 jawaban benar dari A–E.";
+    else if (type === "tf") hint.textContent = "Benar/Salah: isi 3–4 pernyataan + kunci Benar/Salah.";
+    else hint.textContent = "";
+  }
+}
+
+function getMCCKey() {
+  const picked = [];
+  for (let i = 0; i < 5; i++) {
+    const cb = document.getElementById(`q2-ans-${i}`);
+    if (cb && cb.checked) picked.push(i);
+  }
+  return picked;
+}
+
+function updateMCCKeyCount() {
+  const el = document.getElementById("q2-ans-count");
+  const n = getMCCKey().length;
+  if (el) el.textContent = `${n} dipilih`;
+}
+
+function onMCCKeyToggle(i) {
+  // enforce max 3
+  const cb = document.getElementById(`q2-ans-${i}`);
+  if (!cb) return;
+  const picked = getMCCKey();
+  if (cb.checked && picked.length > 3) {
+    cb.checked = false;
+    alert("Maksimal 3 jawaban benar.");
+  }
+  updateMCCKeyCount();
+}
+
+function onTFCountChange() {
+  const n = parseInt(document.getElementById("q3-count")?.value || "4", 10);
+  const row3 = document.getElementById("q3-row-3");
+  if (row3) row3.classList.toggle("hidden", n <= 3);
+}
+
+function saveQuestion() {
+  const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
+
+  const stimulus = (document.getElementById("q-stimulus")?.value || "").trim();
+  const qText = (document.getElementById("q-text")?.value || "").trim();
+
+  const type = document.getElementById("q-type")?.value || "mc";
+
+  const imgUrl = (document.getElementById("q-img-url")?.value || "").trim();
+  const img = pendingStimulusImage || imgUrl;
+
+  if (!qText) { alert("Pertanyaan wajib diisi."); return; }
+
+  let newQ = { type, stimulus: stimulus || "-", img: img || "", q: qText };
+
+  if (type === "mc") {
+    const a = parseInt(document.getElementById("q-answer")?.value || "0", 10);
+
+    const optA = (document.getElementById("q-opt-a")?.value || "").trim();
+    const optB = (document.getElementById("q-opt-b")?.value || "").trim();
+    const optC = (document.getElementById("q-opt-c")?.value || "").trim();
+    const optD = (document.getElementById("q-opt-d")?.value || "").trim();
+
+    if (!optA || !optB || !optC || !optD) { alert("Semua opsi A–D wajib diisi."); return; }
+    if (![0,1,2,3].includes(a)) { alert("Kunci jawaban tidak valid."); return; }
+
+    newQ.opt = [optA, optB, optC, optD];
+    newQ.a = a;
+
+  } else if (type === "mcc") {
+    const optA = (document.getElementById("q2-opt-a")?.value || "").trim();
+    const optB = (document.getElementById("q2-opt-b")?.value || "").trim();
+    const optC = (document.getElementById("q2-opt-c")?.value || "").trim();
+    const optD = (document.getElementById("q2-opt-d")?.value || "").trim();
+    const optE = (document.getElementById("q2-opt-e")?.value || "").trim();
+
+    if (!optA || !optB || !optC || !optD || !optE) { alert("Semua opsi A–E wajib diisi."); return; }
+
+    const key = getMCCKey();
+    if (key.length < 1) { alert("Pilih minimal 1 jawaban benar."); return; }
+    if (key.length > 3) { alert("Maksimal 3 jawaban benar."); return; }
+
+    newQ.opt = [optA, optB, optC, optD, optE];
+    newQ.a_multi = key;
+
+  } else if (type === "tf") {
+    const n = parseInt(document.getElementById("q3-count")?.value || "4", 10);
+    const statements = [];
+    const answers = [];
+
+    for (let i = 0; i < n; i++) {
+      const s = (document.getElementById(`q3-s${i}`)?.value || "").trim();
+      const a = document.getElementById(`q3-a${i}`)?.value;
+      if (!s) { alert(`Pernyataan ${i+1} wajib diisi.`); return; }
+      statements.push(s);
+      answers.push(a === "true");
     }
 
-    function startEditQuestion(idx) {
-      const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
-      const bank = getBank(mapel);
-      if (!bank || idx < 0 || idx >= bank.length) return;
+    newQ.statements = statements;
+    newQ.a_tf = answers;
 
-      const q = bank[idx];
-      editingQuestionIndex = idx;
+  } else {
+    alert("Jenis soal tidak dikenali.");
+    return;
+  }
 
-      document.getElementById("q-stimulus").value = q.stimulus || "";
-      document.getElementById("q-text").value = q.q || "";
-      document.getElementById("q-opt-a").value = q.opt?.[0] || "";
-      document.getElementById("q-opt-b").value = q.opt?.[1] || "";
-      document.getElementById("q-opt-c").value = q.opt?.[2] || "";
-      document.getElementById("q-opt-d").value = q.opt?.[3] || "";
-      document.getElementById("q-answer").value = String(q.a ?? 0);
+  const bank = deepCopy(getBank(mapel));
 
-      const img = String(q.img || "").trim();
-      const urlInput = document.getElementById("q-img-url");
-      const fileInput = document.getElementById("q-img-file");
-      if (fileInput) fileInput.value = "";
-
-      if (img && img.startsWith("data:image")) {
-        pendingStimulusImage = img;
-        if (urlInput) urlInput.value = "";
-        updateStimulusImagePreview(img);
-      } else {
-        pendingStimulusImage = "";
-        if (urlInput) urlInput.value = img;
-        updateStimulusImagePreview(img);
-      }
-
-      setQuestionEditUI(true);
-      document.getElementById("q-text")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  const isEditing = (editingQuestionIndex !== null && editingQuestionIndex !== undefined);
+  if (isEditing) {
+    if (editingQuestionIndex < 0 || editingQuestionIndex >= bank.length) {
+      alert("Gagal update: indeks soal tidak valid.");
+      return;
     }
+    bank[editingQuestionIndex] = newQ;
+  } else {
+    bank.push(newQ);
+  }
 
-    function saveQuestion() {
-      const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
+  setBank(mapel, bank);
+  cancelEditQuestion();
+  renderQuestionManager();
+  alert(isEditing ? "Soal berhasil diperbarui!" : "Soal berhasil ditambahkan!");
+}
 
-      const stimulus = (document.getElementById("q-stimulus")?.value || "").trim();
-      const qText = (document.getElementById("q-text")?.value || "").trim();
-      const a = parseInt(document.getElementById("q-answer")?.value || "0", 10);
-
-      const imgUrl = (document.getElementById("q-img-url")?.value || "").trim();
-      const img = pendingStimulusImage || imgUrl;
-
-      const optA = (document.getElementById("q-opt-a")?.value || "").trim();
-      const optB = (document.getElementById("q-opt-b")?.value || "").trim();
-      const optC = (document.getElementById("q-opt-c")?.value || "").trim();
-      const optD = (document.getElementById("q-opt-d")?.value || "").trim();
-
-      if (!qText) { alert("Pertanyaan wajib diisi."); return; }
-      if (!optA || !optB || !optC || !optD) { alert("Semua opsi A-D wajib diisi."); return; }
-      if (![0,1,2,3].includes(a)) { alert("Kunci jawaban tidak valid."); return; }
-
-      const newQ = {
-        stimulus: stimulus || "-",
-        img: img || "",
-        q: qText,
-        opt: [optA, optB, optC, optD],
-        a
-      };
-
-      const bank = deepCopy(getBank(mapel));
-
-      const isEditing = (editingQuestionIndex !== null && editingQuestionIndex !== undefined);
-      if (isEditing) {
-        if (editingQuestionIndex < 0 || editingQuestionIndex >= bank.length) {
-          alert("Gagal update: indeks soal tidak valid.");
-          return;
-        }
-        bank[editingQuestionIndex] = newQ;
-      } else {
-        bank.push(newQ);
-      }
-
-      setBank(mapel, bank);
-      cancelEditQuestion();
-      renderQuestionManager();
-      alert(isEditing ? "Soal berhasil diperbarui!" : "Soal berhasil ditambahkan!");
-    }
-
-    // Backward compat (jika masih ada tombol lama)
+// Backward compat (jika masih ada tombol lama)
     function addQuestion() { saveQuestion(); }
 
 
@@ -1215,6 +1743,15 @@ function startExam() {
       renderQuestionManager();
       alert("Bank soal berhasil di-reset.");
     }
+
+// Init UI (agar form guru tampil sesuai jenis soal default)
+window.addEventListener("load", () => {
+  try {
+    onQuestionTypeChange();
+    onTFCountChange();
+    updateMCCKeyCount();
+  } catch (e) {}
+});
 
   </script>
 </body>
