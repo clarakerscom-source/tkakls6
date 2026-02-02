@@ -177,11 +177,11 @@
 <table style="width:100%; border-collapse: collapse; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
         <thead style="background: #f1f5f9;">
           <tr>
-            <th style="padding:15px; text-align:left; cursor:pointer; user-select:none;" onclick="setSort(\'waktu\')">Waktu <span id="sort-waktu" style="font-size:12px;color:#64748b;"></span></th>
-            <th style="padding:15px; text-align:left; cursor:pointer; user-select:none;" onclick="setSort(\'nama\')">Nama <span id="sort-nama" style="font-size:12px;color:#64748b;"></span></th>
-            <th style="padding:15px; text-align:left; cursor:pointer; user-select:none;" onclick="setSort(\'sekolah\')">Sekolah <span id="sort-sekolah" style="font-size:12px;color:#64748b;"></span></th>
+            <th style="padding:15px; text-align:left; cursor:pointer; user-select:none;" onclick="setSort('waktu')">Waktu <span id="sort-waktu" style="font-size:12px;color:#64748b;"></span></th>
+            <th style="padding:15px; text-align:left; cursor:pointer; user-select:none;" onclick="setSort('nama')">Nama <span id="sort-nama" style="font-size:12px;color:#64748b;"></span></th>
+            <th style="padding:15px; text-align:left; cursor:pointer; user-select:none;" onclick="setSort('sekolah')">Sekolah <span id="sort-sekolah" style="font-size:12px;color:#64748b;"></span></th>
             <th style="padding:15px; text-align:left;">Mapel</th>
-            <th style="padding:15px; text-align:left; cursor:pointer; user-select:none;" onclick="setSort(\'score\')">Nilai <span id="sort-score" style="font-size:12px;color:#64748b;"></span></th>
+            <th style="padding:15px; text-align:left; cursor:pointer; user-select:none;" onclick="setSort('score')">Nilai <span id="sort-score" style="font-size:12px;color:#64748b;"></span></th>
           </tr>
         </thead>
         <tbody id="teacher-table-body"></tbody>
@@ -201,6 +201,20 @@
           <button class="btn btn-outline" onclick="renderQuestionManager()">Muat</button>
           <button class="btn btn-warning" onclick="resetQuestionBank()">Reset ke Default</button>
         </div>
+
+<div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin: 8px 0 12px;">
+  <button class="btn btn-outline" onclick="exportQuestionBankXLSX()">⬇️ Export Soal (Excel)</button>
+
+  <button class="btn btn-primary" onclick="document.getElementById('q-import-file').click()">⬆️ Import Soal (Excel)</button>
+  <input id="q-import-file" type="file" accept=".xlsx,.xls" class="hidden" onchange="handleImportQuestions(event)" />
+
+  <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#475569;">
+    <input type="checkbox" id="q-import-replace" />
+    Replace bank (hapus dulu sebelum impor)
+  </label>
+
+  <button class="btn btn-outline" onclick="downloadQuestionTemplateXLSX()">⬇️ Template Excel</button>
+</div>
 
         <div id="question-manager-list" style="overflow:auto; border:1px solid #e2e8f0; border-radius: 12px;"></div>
 
@@ -351,6 +365,7 @@
 };
 
     let db;
+    let unsubscribeResults = null;
     try {
       if (firebaseConfig.apiKey) {
         firebase.initializeApp(firebaseConfig);
@@ -1037,7 +1052,7 @@ const score = total ? Math.round((points / total) * 100) : 0;document.getElement
       document.getElementById('view-teacher').classList.remove('hidden');
       document.getElementById('teacher-login-form').classList.add('hidden');
       document.getElementById('teacher-data').classList.remove('hidden');
-      loadTeacherData();
+      startTeacherResultsListener();
     }
 
 
@@ -1046,11 +1061,35 @@ const score = total ? Math.round((points / total) * 100) : 0;document.getElement
       if (pass !== "clarakers") { alert("Password salah!"); return; }
       document.getElementById('teacher-login-form').classList.add('hidden');
       document.getElementById('teacher-data').classList.remove('hidden');
-      loadTeacherData();
+      startTeacherResultsListener();
       // tampilkan bank soal default saat pertama masuk
       setTimeout(() => renderQuestionManager(), 0);
     }
+    function startTeacherResultsListener() {
+      // stop listener lama (kalau ada)
+      if (typeof unsubscribeResults === "function") {
+        try { unsubscribeResults(); } catch (e) {}
+      }
+      unsubscribeResults = null;
 
+      if (db) {
+        unsubscribeResults = db.collection("results")
+          .orderBy("createdAt","desc")
+          .limit(200)
+          .onSnapshot(snapshot => {
+            const rows = [];
+            snapshot.forEach(doc => rows.push(doc.data()));
+            renderTeacherTable(rows);
+          }, err => {
+            console.error("Firestore realtime error:", err);
+            const local = JSON.parse(localStorage.getItem("cbtResults") || "[]");
+            renderTeacherTable(local);
+          });
+      } else {
+        const local = JSON.parse(localStorage.getItem("cbtResults") || "[]");
+        renderTeacherTable(local);
+      }
+    }
     function loadTeacherData() {
       if (db) {
         db.collection("results").orderBy("createdAt","desc").limit(200).get()
@@ -1373,7 +1412,260 @@ const score = total ? Math.round((points / total) * 100) : 0;document.getElement
 
     function deepCopy(obj) { return JSON.parse(JSON.stringify(obj)); }
 
-    function typeLabel(t) {
+    
+// =========================
+// IMPORT/EXPORT BANK SOAL (EXCEL)
+// =========================
+const QX_HEADERS = [
+  "mapel","type","stimulus","img","question",
+  "opt_a","opt_b","opt_c","opt_d","opt_e",
+  "answer_mc","answer_mcc",
+  "tf_s1","tf_a1","tf_s2","tf_a2","tf_s3","tf_a3","tf_s4","tf_a4"
+];
+
+function todayISO() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function normalizeMapelExcel(v, fallback) {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (!s) return fallback;
+  if (["matematika","numerasi","math","literasi numerasi"].includes(s)) return "matematika";
+  if (["bahasa","bhs","indonesia","bahasa indonesia","membaca","literasi membaca"].includes(s)) return "bahasa";
+  return fallback;
+}
+
+function normalizeTypeExcel(v) {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (["mc","pg","pilihan ganda"].includes(s)) return "mc";
+  if (["mcc","pg kompleks","pgk","kompleks"].includes(s)) return "mcc";
+  if (["tf","truefalse","benar/salah","benar salah"].includes(s)) return "tf";
+  return "mc";
+}
+
+function letterToIndex(v, max) {
+  const s = String(v ?? "").trim().toUpperCase();
+  if (!s) return null;
+
+  // boleh angka 0..max-1 atau 1..max
+  const n = parseInt(s, 10);
+  if (Number.isFinite(n)) {
+    if (n >= 0 && n < max) return n;
+    if (n >= 1 && n <= max) return n - 1;
+  }
+
+  const code = s.charCodeAt(0);
+  const idx = code - 65; // A=0
+  if (idx >= 0 && idx < max) return idx;
+
+  return null;
+}
+
+function parseMCCLetters(v) {
+  const s = String(v ?? "").trim().toUpperCase();
+  if (!s) return [];
+  const parts = s.split(/[,;\s]+/).filter(Boolean);
+  const idxs = parts
+    .map(p => letterToIndex(p, 5))
+    .filter(x => Number.isFinite(x));
+  return Array.from(new Set(idxs)).sort((a,b)=>a-b).slice(0,3);
+}
+
+function parseBool(v) {
+  const s = String(v ?? "").trim().toLowerCase();
+  if (s === "") return null;
+  if (["true","1","ya","y","benar"].includes(s)) return true;
+  if (["false","0","tidak","t","salah"].includes(s)) return false;
+  return null;
+}
+
+function rowIsEmpty(r) {
+  return QX_HEADERS.every(k => String(r?.[k] ?? "").trim() === "");
+}
+
+function downloadQuestionTemplateXLSX() {
+  if (typeof XLSX === "undefined") {
+    alert("Library Excel (XLSX) belum termuat.");
+    return;
+  }
+
+  const aoa = [
+    QX_HEADERS,
+    ["matematika","mc","Stimulus opsional","", "Berapakah 2 + 3 ?", "4","5","6","7","", "B","", "","","","","","","",""],
+    ["bahasa","mcc","Pilih 2 kata sifat.","", "Kata manakah yang termasuk kata sifat?", "indah","berlari","besar","makan","cepat", "","A,C,E", "","","","","","","",""],
+    ["matematika","tf","Bacalah pernyataan berikut.","", "Tentukan Benar/Salah untuk tiap pernyataan.", "","","","","", "","",
+      "2 adalah bilangan genap","TRUE",
+      "9 adalah bilangan prima","FALSE",
+      "10 lebih besar dari 7","TRUE",
+      "",""
+    ]
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Soal");
+  XLSX.writeFile(wb, `template_soal_cbt_${todayISO()}.xlsx`);
+}
+
+function exportQuestionBankXLSX() {
+  if (typeof XLSX === "undefined") {
+    alert("Library Excel (XLSX) belum termuat.");
+    return;
+  }
+
+  const mapel = document.getElementById("q-mapel-select")?.value || "matematika";
+  const bank = normalizeBank(getBank(mapel));
+
+  const rows = bank.map(qRaw => {
+    const q = normalizeQuestion(qRaw || {});
+    const row = {};
+    QX_HEADERS.forEach(h => row[h] = "");
+
+    row.mapel = mapel;
+    row.type = q.type;
+    row.stimulus = (q.stimulus && q.stimulus !== "-") ? q.stimulus : "";
+    row.img = q.img || "";
+    row.question = q.q || "";
+
+    if (q.type === "mc") {
+      row.opt_a = q.opt?.[0] || "";
+      row.opt_b = q.opt?.[1] || "";
+      row.opt_c = q.opt?.[2] || "";
+      row.opt_d = q.opt?.[3] || "";
+      row.answer_mc = (["A","B","C","D"][q.a] || "");
+    } else if (q.type === "mcc") {
+      row.opt_a = q.opt?.[0] || "";
+      row.opt_b = q.opt?.[1] || "";
+      row.opt_c = q.opt?.[2] || "";
+      row.opt_d = q.opt?.[3] || "";
+      row.opt_e = q.opt?.[4] || "";
+      const key = Array.isArray(q.a_multi) ? q.a_multi : [];
+      row.answer_mcc = key.map(i => ["A","B","C","D","E"][i] || "?").join(",");
+    } else if (q.type === "tf") {
+      const st = Array.isArray(q.statements) ? q.statements : [];
+      const ans = Array.isArray(q.a_tf) ? q.a_tf : [];
+      for (let i = 0; i < Math.min(4, st.length); i++) {
+        row[`tf_s${i+1}`] = st[i] || "";
+        row[`tf_a${i+1}`] = (ans[i] === true) ? "TRUE" : "FALSE";
+      }
+    }
+
+    return row;
+  });
+
+  const ws = XLSX.utils.json_to_sheet(rows, { header: QX_HEADERS });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Soal");
+  XLSX.writeFile(wb, `bank_soal_${mapel}_${todayISO()}.xlsx`);
+}
+
+function handleImportQuestions(ev) {
+  const file = ev?.target?.files?.[0];
+  ev.target.value = "";
+  if (!file) return;
+  importQuestionBankXLSX(file);
+}
+
+function importQuestionBankXLSX(file) {
+  if (typeof XLSX === "undefined") {
+    alert("Library Excel (XLSX) belum termuat.");
+    return;
+  }
+
+  const replace = !!document.getElementById("q-import-replace")?.checked;
+  const fallbackMapel = document.getElementById("q-mapel-select")?.value || "matematika";
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: "array" });
+
+      const sheetName = wb.SheetNames.includes("Soal") ? "Soal" : wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rawRows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: false });
+
+      const toAdd = { matematika: [], bahasa: [] };
+      let skipped = 0;
+
+      rawRows.forEach((r) => {
+        if (rowIsEmpty(r)) return;
+
+        const mapel = normalizeMapelExcel(r.mapel, fallbackMapel);
+        const type = normalizeTypeExcel(r.type);
+
+        const stimulus = String(r.stimulus ?? "").trim();
+        const img = String(r.img ?? "").trim();
+        const question = String(r.question ?? "").trim();
+
+        if (!question) { skipped++; return; }
+
+        let qObj = { type, stimulus: stimulus || "-", img: img || "", q: question };
+
+        if (type === "mc") {
+          const A = String(r.opt_a ?? "").trim();
+          const B = String(r.opt_b ?? "").trim();
+          const C = String(r.opt_c ?? "").trim();
+          const D = String(r.opt_d ?? "").trim();
+          const a = letterToIndex(r.answer_mc, 4);
+          if (!A || !B || !C || !D || a === null) { skipped++; return; }
+          qObj.opt = [A,B,C,D];
+          qObj.a = a;
+
+        } else if (type === "mcc") {
+          const A = String(r.opt_a ?? "").trim();
+          const B = String(r.opt_b ?? "").trim();
+          const C = String(r.opt_c ?? "").trim();
+          const D = String(r.opt_d ?? "").trim();
+          const E = String(r.opt_e ?? "").trim();
+          const key = parseMCCLetters(r.answer_mcc);
+          if (!A || !B || !C || !D || !E || key.length < 1) { skipped++; return; }
+          qObj.opt = [A,B,C,D,E];
+          qObj.a_multi = key;
+
+        } else if (type === "tf") {
+          const st = [];
+          const an = [];
+          for (let i = 1; i <= 4; i++) {
+            const s = String(r[`tf_s${i}`] ?? "").trim();
+            const b = parseBool(r[`tf_a${i}`]);
+            if (s) {
+              if (b === null) { skipped++; return; }
+              st.push(s);
+              an.push(b);
+            }
+          }
+          if (st.length < 3) { skipped++; return; }
+          qObj.statements = st.slice(0,4);
+          qObj.a_tf = an.slice(0,4);
+
+        } else {
+          skipped++; return;
+        }
+
+        toAdd[mapel].push(qObj);
+      });
+
+      // simpan
+      ["matematika","bahasa"].forEach(m => {
+        if (!toAdd[m].length) return;
+        const base = replace ? [] : deepCopy(getBank(m));
+        const merged = base.concat(toAdd[m]);
+        setBank(m, merged);
+      });
+
+      renderQuestionManager();
+      alert(`Import selesai.\nDitambahkan: Matematika=${toAdd.matematika.length}, Bahasa=${toAdd.bahasa.length}\nDilewati (invalid/kosong): ${skipped}`);
+
+    } catch (err) {
+      console.error(err);
+      alert("Gagal import. Pastikan format kolom sesuai template.");
+    }
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+function typeLabel(t) {
   if (t === "mc") return "PG";
   if (t === "mcc") return "PG Kompleks";
   if (t === "tf") return "Benar/Salah";
