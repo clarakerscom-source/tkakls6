@@ -186,9 +186,20 @@
         </thead>
         <tbody id="teacher-table-body"></tbody>
       </table>
+
+      <div id="teacher-pagination" style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px;">
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-outline" id="btn-page-prev" onclick="teacherPrevPage()">← Sebelumnya</button>
+          <button class="btn btn-outline" id="btn-page-next" onclick="teacherNextPage()">Berikutnya →</button>
+          <span id="teacher-page-info" style="font-size:12px; color:#64748b;"></span>
+        </div>
+        <div id="teacher-page-preview" style="font-size:12px; color:#64748b;"></div>
+      </div>
+
       <div style="margin-top:12px; color:#64748b; font-size:12px;">
         Catatan: Data tersimpan di <b>localStorage</b> (dan akan ikut tersimpan ke <b>Firestore</b> jika konfigurasi Firebase diisi).
-      
+      </div>
+
       <div id="question-bank-section" style="margin-top:18px; background: white; border-radius: 16px; padding: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
         <h3 style="margin:0 0 12px;">🧩 Kelola Bank Soal</h3>
 
@@ -620,6 +631,14 @@ function blueprintTotal(mapel) {
 
     // sorting & mode
     let sortState = { key: "waktu", dir: "desc" };
+
+    // Pagination hasil di dashboard guru/guru tamu
+    const TEACHER_PAGE_SIZE = 20; // tampil 20 siswa per halaman
+    let teacherPage = 1;
+
+    // Untuk menghindari beban berlebih, batasi maksimum dokumen yang disubscribe.
+    // Jika hasil sudah sangat banyak (puluhan ribu), sebaiknya pakai pagination Firestore server-side.
+    const TEACHER_RESULTS_MAX = 5000;
     let isGuestTeacher = false;
     // Kode akses untuk mode Guru Tamu (ubah sesuai kebutuhan)
     const GUEST_TEACHER_ACCESS_CODE = "lihatnilai";
@@ -1085,7 +1104,7 @@ let points = 0;
       if (db) {
         unsubscribeResults = db.collection("results")
           .orderBy("createdAt","desc")
-          .limit(200)
+          .limit(TEACHER_RESULTS_MAX)
           .onSnapshot(snapshot => {
             const rows = [];
             snapshot.forEach(doc => rows.push(doc.data()));
@@ -1102,7 +1121,7 @@ let points = 0;
     }
     function loadTeacherData() {
       if (db) {
-        db.collection("results").orderBy("createdAt","desc").limit(200).get()
+        db.collection("results").orderBy("createdAt","desc").limit(TEACHER_RESULTS_MAX).get()
           .then(snapshot => {
             const rows = [];
             snapshot.forEach(doc => rows.push(doc.data()));
@@ -1122,6 +1141,9 @@ let points = 0;
     
     function setSort(key) {
       if (!key) return;
+
+      // setiap ganti urutan, kembali ke halaman 1
+      teacherPage = 1;
 
       if (sortState.key === key) {
         sortState.dir = (sortState.dir === "asc" ? "desc" : "asc");
@@ -1222,20 +1244,90 @@ let points = 0;
     }
 
 
+    
+    function teacherPrevPage() {
+      if (teacherPage > 1) {
+        teacherPage--;
+        renderTeacherTable(teacherResultsCache);
+      }
+    }
+
+    function teacherNextPage() {
+      const total = Array.isArray(teacherResultsCache) ? teacherResultsCache.length : 0;
+      const totalPages = Math.max(1, Math.ceil(total / TEACHER_PAGE_SIZE));
+      if (teacherPage < totalPages) {
+        teacherPage++;
+        renderTeacherTable(teacherResultsCache);
+      }
+    }
+
+    function renderTeacherPaginationUI(sortedAll, startIdx, endIdx) {
+      const wrap = document.getElementById("teacher-pagination");
+      const prevBtn = document.getElementById("btn-page-prev");
+      const nextBtn = document.getElementById("btn-page-next");
+      const infoEl = document.getElementById("teacher-page-info");
+      const previewEl = document.getElementById("teacher-page-preview");
+
+      const total = Array.isArray(sortedAll) ? sortedAll.length : 0;
+      const totalPages = total ? Math.ceil(total / TEACHER_PAGE_SIZE) : 0;
+
+      if (wrap) wrap.classList.toggle("hidden", total <= TEACHER_PAGE_SIZE);
+
+      if (infoEl) {
+        if (!total) infoEl.textContent = "";
+        else infoEl.textContent = `Menampilkan ${startIdx + 1}-${endIdx} dari ${total} | Halaman ${teacherPage}/${totalPages}`;
+      }
+
+      if (prevBtn) prevBtn.disabled = (teacherPage <= 1);
+      if (nextBtn) nextBtn.disabled = (!totalPages || teacherPage >= totalPages);
+
+      if (previewEl) {
+        if (totalPages && teacherPage < totalPages) {
+          const nextStart = endIdx;
+          const nextEnd = Math.min(nextStart + TEACHER_PAGE_SIZE, total);
+          const nextSlice = sortedAll.slice(nextStart, nextEnd);
+
+          const names = nextSlice
+            .slice(0, 3)
+            .map(x => (x && x.nama ? String(x.nama) : "-"))
+            .join(", ");
+
+          previewEl.textContent = `Preview halaman berikutnya: ${names}${nextSlice.length > 3 ? "…" : ""}`;
+        } else {
+          previewEl.textContent = "";
+        }
+      }
+    }
+
     function renderTeacherTable(data) {
       teacherResultsCache = Array.isArray(data) ? data : [];
       updateSortIndicators();
+
       const tbody = document.getElementById('teacher-table-body');
+      if (!tbody) return;
       tbody.innerHTML = "";
 
       if (!teacherResultsCache.length) {
         tbody.innerHTML = `<tr><td colspan="5" style="padding:15px;color:#64748b;">Belum ada data hasil.</td></tr>`;
+        renderTeacherPaginationUI([], 0, 0);
         return;
       }
 
-      const sorted = applySort(teacherResultsCache);
+      const sortedAll = applySort(teacherResultsCache);
 
-      sorted.forEach(item => {
+      const total = sortedAll.length;
+      const totalPages = Math.max(1, Math.ceil(total / TEACHER_PAGE_SIZE));
+
+      // jaga agar halaman aktif selalu valid meskipun data realtime berubah
+      if (teacherPage < 1) teacherPage = 1;
+      if (teacherPage > totalPages) teacherPage = totalPages;
+
+      const startIdx = (teacherPage - 1) * TEACHER_PAGE_SIZE;
+      const endIdx = Math.min(startIdx + TEACHER_PAGE_SIZE, total);
+
+      const pageItems = sortedAll.slice(startIdx, endIdx);
+
+      pageItems.forEach(item => {
         const waktu = item.waktu ? new Date(item.waktu).toLocaleString() : "-";
         const mapel = item.mapel === "matematika" ? "Numerasi" : (item.mapel === "bahasa" ? "Membaca" : (item.mapel || "-"));
 
@@ -1249,7 +1341,11 @@ let points = 0;
         `;
         tbody.appendChild(tr);
       });
+
+      renderTeacherPaginationUI(sortedAll, startIdx, endIdx);
     }
+
+
 
 
     // =========================
